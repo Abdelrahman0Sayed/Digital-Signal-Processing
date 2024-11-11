@@ -5,14 +5,85 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QMainWindow, QLayout , QVBoxLayout , QHBoxLayout, QGridLayout ,QWidget, QFileDialog, QPushButton, QColorDialog, QInputDialog, QComboBox, QDialog
+from PyQt5.QtWidgets import QMainWindow, QLayout , QVBoxLayout , QHBoxLayout, QGridLayout ,QWidget, QFileDialog, QPushButton, QColorDialog, QInputDialog, QComboBox, QDialog, QRadioButton
 from scipy.io import wavfile
 import numpy as np
 import pandas as pd
+import sounddevice as sd
+from equalizer_functions import changeMode, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram 
 
 #import Resources_rc
 
 class Ui_MainWindow(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+        self.current_mode = "Musical Instruments"
+        self.frequency_scale = "Linear"
+        self.signalData = ""
+        self.signalTimer = QTimer()
+        self.signalTimeIndex = 0
+        self.domain="Time Domain"
+        
+        
+        # Frequency ranges for different instruments (Hz)
+        self.instrument_ranges = {
+            "Guitar": [(0, 170)],
+            "Flute": [(170, 250)],
+            "Harmonica": [(250, 400)],
+            "Xylophone": [(400, 1000)]  
+        }
+        
+        # Frequency ranges for animal sounds (Hz)
+        self.animal_ranges = {
+            "Dog": [(500, 1500)],
+            "Cat": [(400, 1000)],
+            "Bird": [(2000, 8000)],
+            "Cow": [(100, 600)]
+        }
+        
+        # Frequency ranges for ECG abnormalities
+        self.ecg_ranges = {
+            "Normal": [(0.5, 40)],
+            "Tachycardia": [(60, 100)],
+            "Bradycardia": [(30, 60)],
+            "Arrhythmia": [(100, 150)]
+        }
+
+        self.sliders = []   
+        self.sliderLabels = []
+
+
+
+
+    def LoadSignalFile(self):
+        print("Lets Choose a file")
+        file_path= ""
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Signal File", "", "File Extension (*.wav *.mp3 *.csv)", options=options)
+        
+        # Get the extension of the file
+        extension = file_path.split(".")[-1]
+        self.samplingRate = 0
+        if extension == "wav" or extension == "mp3":
+            self.signalData, self.samplingRate = librosa.load(file_path)
+            duration = librosa.get_duration(y=self.signalData, sr=self.samplingRate)
+            self.signalTime = np.linspace(0, duration, len(self.signalData))
+
+        elif extension == "csv":
+            fileData = pd.read_csv(
+                file_path, delimiter=',', skiprows=1)  # Skip header row
+            self.signalTime = np.array(fileData.iloc[:, 0].astype(float).tolist())
+            self.signalData = np.array(fileData.iloc[:, 1].astype(float).tolist())
+            self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
+            self.speed = 3
+
+        signalPlotting(self) 
+        plotSpectrogram(self)
+        updateEqualization(self)
+        changeMode(self, self.current_mode)
+
+    
 
 
     def setupUi(self, MainWindow):
@@ -27,22 +98,20 @@ class Ui_MainWindow(QMainWindow):
         self.gridLayout.setObjectName("gridLayout")
 
         # ------------------------------ Icons ---------------------------- #
-        uploadIcon = QtGui.QIcon("Images/upload.png")
-        playIcon = QtGui.QIcon("Images/play.png")
-        stopIcon = QtGui.QIcon("Images/pause.png")
-        signalIcon = QtGui.QIcon("Images/signal.png")
-        replayIcon = QtGui.QIcon("Images/replay.png")
-        speedUpIcon = QtGui.QIcon("Images/up.png")
-        speedDownIcon = QtGui.QIcon("Images/down.png")
-        zoomInIcon = QtGui.QIcon("Images/zoom_in.png")
-        zoomOutIcon = QtGui.QIcon("Images/zoom_out.png")
-        exportIcon = QtGui.QIcon("Images/file.png")
+        uploadIcon = QtGui.QIcon("images/upload.png")
+        playIcon = QtGui.QIcon("images/play.png")
+        stopIcon = QtGui.QIcon("images/pause.png")
+        signalIcon = QtGui.QIcon("images/signal.png")
+        replayIcon = QtGui.QIcon("images/replay.png")
+        speedUpIcon = QtGui.QIcon("images/up.png")
+        speedDownIcon = QtGui.QIcon("images/down.png")
+        zoomInIcon = QtGui.QIcon("images/zoom_in.png")
+        zoomOutIcon = QtGui.QIcon("images/zoom_out.png")
+        exportIcon = QtGui.QIcon("images/file.png")
 
         # --------------------------- Important Attributes --------------------------- #
         self.equalizerMode= "Musical Instruments"
-        self.signalData = ""
-        self.signalTimer = QTimer()
-        self.signalTimeIndex = 0
+        
 
 
 
@@ -109,6 +178,11 @@ class Ui_MainWindow(QMainWindow):
         self.frequencyDomainButton.setIconSize(QtCore.QSize(25, 25))
         self.frequencyDomainButton.setObjectName("frequency domain")
         self.verticalLayout_2.addWidget(self.frequencyDomainButton)
+        self.frequencyDomainButton.clicked.connect(lambda :toggleFreqDomain(self))
+
+
+        
+    
         
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_2.addItem(spacerItem)
@@ -210,7 +284,7 @@ class Ui_MainWindow(QMainWindow):
         self.spectogramCheck.setIconSize(QtCore.QSize(20, 20))
         self.spectogramCheck.setTristate(False)
         self.spectogramCheck.setObjectName("spectogramCheck")
-        self.spectogramCheck.stateChanged.connect(self.toggleVisibility)
+        self.spectogramCheck.stateChanged.connect(lambda : toggleVisibility(self))
         self.verticalLayout_2.addWidget(self.spectogramCheck)
         spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_2.addItem(spacerItem1)
@@ -435,7 +509,7 @@ class Ui_MainWindow(QMainWindow):
         self.playPause.setIcon(playIcon)
         self.playPause.setIconSize(QtCore.QSize(25, 25))
         self.playPause.setObjectName("playPause")
-        self.playPause.clicked.connect(self.togglePlaying)
+        self.playPause.clicked.connect(lambda : togglePlaying(self))
         self.horizontalLayout_4.addWidget(self.playPause)
         self.resetButton = QtWidgets.QPushButton(self.mainBodyframe)
         
@@ -467,7 +541,7 @@ class Ui_MainWindow(QMainWindow):
         self.resetButton.setIcon(replayIcon)
         self.resetButton.setIconSize(QtCore.QSize(25, 25))
         self.resetButton.setObjectName("resetButton")
-        self.resetButton.clicked.connect(self.resetSignal)
+        self.resetButton.clicked.connect(lambda : resetSignal(self))
         self.horizontalLayout_4.addWidget(self.resetButton)
         
         
@@ -500,7 +574,7 @@ class Ui_MainWindow(QMainWindow):
         self.zoomIn.setIconSize(QtCore.QSize(25, 25))
         self.zoomIn.setObjectName("zoomIn")
         self.horizontalLayout_4.addWidget(self.zoomIn)
-        
+        self.zoomIn.clicked.connect(lambda :zoomingIn(self))
         
         
         self.zoomOut = QtWidgets.QPushButton(self.mainBodyframe)
@@ -531,7 +605,7 @@ class Ui_MainWindow(QMainWindow):
         self.zoomOut.setIconSize(QtCore.QSize(25, 25))
         self.zoomOut.setObjectName("zoomOut")
         self.horizontalLayout_4.addWidget(self.zoomOut)
-        
+        self.zoomOut.clicked.connect(lambda :zoomingOut(self))
         
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setSpacing(3)
@@ -559,8 +633,9 @@ class Ui_MainWindow(QMainWindow):
         self.speedUp.setObjectName("pushButton_2")
         self.speedUp.setIcon(speedUpIcon)
         self.speedUp.setIconSize(QtCore.QSize(25, 25))
-        self.horizontalLayout_3.addWidget(self.speedUp)\
-        
+        self.horizontalLayout_3.addWidget(self.speedUp)
+        self.speedUp.clicked.connect(lambda :speedingUp(self))
+
         self.speedDown = QtWidgets.QPushButton(self.mainBodyframe)
         self.speedDown.setStyleSheet("QPushButton{\n"
                 "background-color: #062e51;\n"
@@ -584,7 +659,8 @@ class Ui_MainWindow(QMainWindow):
         self.speedDown.setIcon(speedDownIcon)
         self.speedDown.setIconSize(QtCore.QSize(25, 25))
         self.horizontalLayout_3.addWidget(self.speedDown)
-        
+        self.speedDown.clicked.connect(lambda :speedingDown(self))
+
         spacerItem9 = QtWidgets.QSpacerItem(200, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem9)
         spacerItem10 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -669,31 +745,8 @@ class Ui_MainWindow(QMainWindow):
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.slidersWidget)
         self.horizontalLayout_5.setSpacing(6)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        
-        self.verticalSlider = QtWidgets.QSlider(self.slidersWidget)
-        self.verticalSlider.setOrientation(QtCore.Qt.Vertical)
-        self.verticalSlider.setObjectName("verticalSlider")
-        self.horizontalLayout_5.addWidget(self.verticalSlider)
-        
-        self.verticalSlider_2 = QtWidgets.QSlider(self.slidersWidget)
-        self.verticalSlider_2.setOrientation(QtCore.Qt.Vertical)
-        self.verticalSlider_2.setObjectName("verticalSlider_2")
-        self.horizontalLayout_5.addWidget(self.verticalSlider_2)
-        
-        self.verticalSlider_3 = QtWidgets.QSlider(self.slidersWidget)
-        self.verticalSlider_3.setOrientation(QtCore.Qt.Vertical)
-        self.verticalSlider_3.setObjectName("verticalSlider_3")
-        self.horizontalLayout_5.addWidget(self.verticalSlider_3)
-        
-        self.verticalSlider_4 = QtWidgets.QSlider(self.slidersWidget)
-        self.verticalSlider_4.setOrientation(QtCore.Qt.Vertical)
-        self.verticalSlider_4.setObjectName("verticalSlider_4")
-        self.horizontalLayout_5.addWidget(self.verticalSlider_4)
-        
-        self.verticalSlider_5 = QtWidgets.QSlider(self.slidersWidget)
-        self.verticalSlider_5.setOrientation(QtCore.Qt.Vertical)
-        self.verticalSlider_5.setObjectName("verticalSlider_5")
-        self.horizontalLayout_5.addWidget(self.verticalSlider_5)
+
+
         self.mainbody.addWidget(self.slidersWidget)
         self.mainbody.setStretch(0, 4)
         self.mainbody.setStretch(1, 1)
@@ -711,107 +764,22 @@ class Ui_MainWindow(QMainWindow):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-
-
-    def resetSignal(self):
-        self.signalTimer.stop()
-        self.signalTimeIndex = 0
-        self.signalPlotting()
-
-    def toggleVisibility(self):
-        if self.secondGraphCanvas.isVisible() and self.firstGraphCanvas.isVisible():
-            self.secondGraphCanvas.hide()
-            self.firstGraphCanvas.hide()
-        else:
-            self.firstGraphCanvas.show()
-            self.secondGraphCanvas.show()
-
-
-    def LoadSignalFile(self):
-        print("Lets Choose a file")
-        file_path= ""
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Signal File", "", "File Extension (*.wav *.mp3 *.csv)", options=options)
+        self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
         
-        # Get the extension of the file
-        extension = file_path.split(".")[-1]
-        self.samplingRate = 0
-        if extension == "wav" or extension == "mp3":
-            self.signalData, self.samplingRate = librosa.load(file_path)
-            duration = librosa.get_duration(y=self.signalData, sr=self.samplingRate)
-            self.signalTime = np.linspace(0, duration, len(self.signalData))
+        # Add frequency scale toggle button
+        self.scaleToggle = QtWidgets.QPushButton(self.mainBodyframe)
+        self.scaleToggle.setText("Toggle Frequency Scale")
+        self.scaleToggle.clicked.connect(lambda : toggleFrequencyScale(self))
+        self.verticalLayout_2.addWidget(self.scaleToggle)
 
-        elif extension == "csv":
-            fileData = pd.read_csv(
-                file_path, delimiter=',', skiprows=1)  # Skip header row
-            self.signalTime = np.array(fileData.iloc[:, 0].astype(float).tolist())
-            self.signalData = np.array(fileData.iloc[:, 1].astype(float).tolist())
-            self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
-            self.speed = 3
-
-        self.signalPlotting()    
-
-
-
-
-    def signalPlotting(self):
-        self.graph2.plot(self.signalTime ,self.signalData, pen='b')  # Add name parameter for legend
-        self.graph1.clear()
-        self.signalTimer.stop()
-        self.signalTimeIndex = 0
-
-        self.signalTimer.timeout.connect(self.updateSignalPlotting)
-        self.signalTimer.start(0)
+        # Connect audio buttons
+        self.playOriginalSignal.clicked.connect(lambda : playOriginalAudio(self))
+        self.playFilteredSignal.clicked.connect(lambda : playFilteredAudio(self))
         
+        # Add stop button functionality to export button (or add a new stop button)
+        self.exportButton.clicked.connect(lambda : stopAudio(self))
 
 
-        #self.graph1.plot(self.signalTime, self.signalData, pen='b', name='Data')
-    def updateSignalPlotting(self):
-        self.windowSize = 2  # The window size in terms of time (5 units of time)
-        
-        # Get the current time based on the latest index
-        current_time = self.signalTime[self.signalTimeIndex]
-        
-        # Calculate the start time of the window (5 units before the current time)
-        start_time = current_time - self.windowSize
-        if start_time < self.signalTime[0]:  # Ensure the start time doesn't go before the first data point
-            start_time = self.signalTime[0]
-        
-        # Get the relevant data points within the time window
-        start_index = next(i for i, t in enumerate(self.signalTime) if t >= start_time)
-        end_index = self.signalTimeIndex + 100  # Include the current time point
-        
-        # Clear the graph before plotting new data
-        self.graph1.clear()
-
-        # Plot the data within the time window (from start_index to end_index)
-        self.graph1.plot(self.signalTime[start_index:end_index], 
-                        self.signalData[start_index:end_index], 
-                        pen='b', name='Data')
-
-        # Increment signalTimeIndex to the next data point
-        self.signalTimeIndex += 10
-
-        # Stop the timer and reset the index if we reach the end of the data
-        if self.signalTimeIndex >= len(self.signalData):
-            self.signalTimer.stop()  # Stop the signal timer
-            self.signalTimeIndex = 0  # Reset the index to start from the beginning
-
-        # Set the X-range to zoom in on the most recent `windowSize` data points based on time
-        if self.signalTimeIndex > self.windowSize:
-            pass
-        else:
-            self.graph1.setXRange(0, self.windowSize, padding=0)
-
-        self.graph1.setYRange(min(self.signalData) , max(self.signalData), padding=0)
-
-    def togglePlaying(self):
-        if self.signalTimer.isActive():
-            self.signalTimer.stop()
-            self.playPause.setIcon(self.playIcon)
-        else:
-            self.signalTimer.start(0)
-            self.playPause.setIcon(self.stopIcon)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -829,10 +797,9 @@ class Ui_MainWindow(QMainWindow):
         self.resetButton.setText(_translate("MainWindow", "Reset"))
         self.speedUp.setText(_translate("MainWindow", "Speed Up"))
         self.speedDown.setText(_translate("MainWindow", "Speed Down"))
-        
-
-
-
+    
+    
+    
 
 
 
@@ -843,5 +810,8 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
+
     MainWindow.show()
     sys.exit(app.exec_())
+
+
