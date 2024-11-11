@@ -108,18 +108,18 @@ def updateEqualization(self):
                 signal_fft[freq_mask] *= gain
     
     # Convert back to time domain
-    modified_signal = np.real(np.fft.ifft(signal_fft))
+    self.modifiedData = modified_signal = np.real(np.fft.ifft(signal_fft))
     
     # Update plot with appropriate frequency scale
-    self.graph2.clear()
-    if self.frequency_scale == "Audiogram" :
-        freq_mask = self.frequencies > 0
-        self.graph2.plot(np.log10(self.frequencies[freq_mask]), 
-                        20 * np.log10(np.abs(signal_fft[freq_mask])))
-    else :
-        self.graph2.plot(self.signalTime, modified_signal, pen='r')
+    # self.graph2.clear()
+    # if self.frequency_scale == "Audiogram" :
+    #     freq_mask = self.frequencies > 0
+    #     self.graph2.plot(np.log10(self.frequencies[freq_mask]), 
+    #                     20 * np.log10(np.abs(signal_fft[freq_mask])))
+    # else :
+    #     self.graph2.plot(self.signalTime, modified_signal, pen='r')
     
-    self.graph2.setYRange(min(self.signalData), max(self.signalData))
+    # self.graph2.setYRange(min(self.signalData), max(self.signalData))
 
     # Update the second spectrogram plot
     self.secondGraphAxis.clear()
@@ -133,6 +133,10 @@ def updateEqualization(self):
     self.secondGraphAxis.set_ylabel('Frequency [Hz]')
     self.secondGraphAxis.set_xlabel('Time [sec]')
     self.secondGraphCanvas.draw()
+
+    signalPlotting(self)
+
+
 
 
 def toggleFrequencyScale(self):
@@ -155,67 +159,66 @@ def toggleVisibility(self):
 
 
 def signalPlotting(self):
-    self.graph2.plot(self.signalTime ,self.signalData, pen='b')  # Add name parameter for legend
+    self.start_time = 0.0
+    self.end_time = 1.0
+    self.drawn = False
+
     self.graph1.clear()
+    self.graph2.clear()
+
+    self.graph1.plot(self.signalTime, self.signalData, pen='b', name='Original Data')
+    self.graph2.plot(self.signalTime, self.modifiedData, pen='r', name='Original Data')
+
+    self.graph1.setLimits(xMin=0, xMax=self.signalTime[-1] ,yMin=min(self.signalData) - 0.2 , yMax=max(self.signalData) + 0.2)
+    self.graph2.setLimits(xMin=0, xMax=self.signalTime[-1] ,yMin=min(self.signalData) - 0.2 , yMax=max(self.signalData) + 0.2)
+    
     self.signalTimer.stop()
     self.signalTimeIndex = 0
 
     self.signalTimer.timeout.connect(lambda: updateSignalPlotting(self))
-    self.signalTimer.start(0)
+    self.signalTimer.start(80)
 
 
-#self.graph1.plot(self.signalTime, self.signalData, pen='b', name='Data')
+
 def updateSignalPlotting(self):
-    self.windowSize = 2  # The window size in terms of time (5 units of time)
-    
-    # Get the current time based on the latest index
-    current_time = self.signalTime[self.signalTimeIndex]
-    
-    # Calculate the start time of the window (5 units before the current time)
-    start_time = current_time - self.windowSize
-    if start_time < self.signalTime[0]:  # Ensure the start time doesn't go before the first data point
-        start_time = self.signalTime[0]
-    
-    # Get the relevant data points within the time window
-    start_index = next(i for i, t in enumerate(self.signalTime) if t >= start_time)
-    end_index = self.signalTimeIndex + 100  # Include the current time point
-    
-    # Clear the graph before plotting new data
-    self.graph1.clear()
+    self.windowSize = 1  # Fixed window size
 
-    # Plot the data within the time window (from start_index to end_index)
-    self.graph1.plot(self.signalTime[start_index:end_index], 
-                    self.signalData[start_index:end_index], 
-                    pen='b', name='Data')
-
-    # Increment signalTimeIndex to the next data point
-    self.signalTimeIndex += 10
-
-    # Stop the timer and reset the index if we reach the end of the data
+    
+    # Stop the timer if we reach the end of the data
     if self.signalTimeIndex >= len(self.signalData):
-        self.signalTimer.stop()  # Stop the signal timer
-        self.signalTimeIndex = 0  # Reset the index to start from the beginning
+        self.signalTimer.stop()
+        self.signalTimeIndex = 0
 
-    # Set the X-range to zoom in on the most recent `windowSize` data points based on time
-    if self.signalTimeIndex > self.windowSize:
-        pass
-    else:
-        self.graph1.setXRange(0, self.windowSize, padding=0)
+    # if self.signalTime[self.signalTimeIndex] > self.windowSize:
+    self.start_time = self.signalTime[self.signalTimeIndex] - self.windowSize
+    if self.start_time < 0:
+        self.start_time = 0
 
-    self.graph1.setYRange(min(self.signalData) , max(self.signalData), padding=0)
+    self.end_time = self.signalTime[self.signalTimeIndex] + self.windowSize
+    if self.signalTime[self.signalTimeIndex] < self.windowSize:
+        self.end_time = self.windowSize
+
+    self.graph1.setXRange(self.start_time, self.end_time, padding=0)
+    self.graph2.setXRange(self.start_time, self.end_time, padding=0)
+
+
+    
+    self.signalTimeIndex += 100
+    
+
 
 def togglePlaying(self):
     if self.signalTimer.isActive():
         self.signalTimer.stop()
         self.playPause.setIcon(self.playIcon)
     else:
-        self.signalTimer.start(0)
+        self.signalTimer.start()
         self.playPause.setIcon(self.stopIcon)
 
+
+
 def zoomingIn(self):
-    """
-    Zooms in on the graph by scaling the view boxes.
-    """
+
     # Get the view box of graph1 and scale it by (0.5, 1)
     view_box1 = self.graph1.plotItem.getViewBox()
     view_box1.scaleBy((0.5, 1))
@@ -225,12 +228,6 @@ def zoomingIn(self):
     view_box2.scaleBy((0.5, 1))
 
 def zoomingOut(self):
-    """
-    Zoom out the view boxes of graph1 and graph2 by scaling them horizontally.
-
-    Args:
-        self: The current instance of the class.
-    """
     # Get the view box of graph1 and scale it horizontally by a factor of 1.5
     view_box1 = self.graph1.plotItem.getViewBox()
     view_box1.scaleBy((1.5, 1))
@@ -240,32 +237,19 @@ def zoomingOut(self):
     view_box2.scaleBy((1.5, 1))
 
 def speedingUp(self):
-    # """
-    # Fast forwards by skipping a set number of points.
-    # """
-    # self.signalTimeIndex += 150  # Skip ahead by 10 data points for a faster progression
-    # if self.signalTimeIndex >= len(self.signalData):  # Prevent going out of bounds
-    #     self.signalTimeIndex = len(self.signalData) - 1
-    # self.updateSignalPlotting()  # Update the plot with the new fast-forwarded signal data
-    """
-    Increases the speed of the dynamic signal plotting without skipping data points.
-    """
-    # Stop the current timer to adjust the interval
+
     #self.signalTimer.stop()
     # Get the current interval and reduce it for faster updates
     current_interval = self.signalTimer.interval()
-    new_interval = max(0, current_interval - 1000)  # Decrease the interval to speed up
-    # Set the new interval and restart the timer
-    self.signalTimer.setInterval(new_interval)
-    #self.signalTimer.start()
-     
+    if current_interval > 50:
+        new_interval = max(50, current_interval - 100)  # Decrease the interval to speed up
+        self.signalTimer.setInterval(new_interval)
+        
 def speedingDown(self):
-    """
-    Decreases the playback speed of the signal by increasing the timer interval.
-    """
+
     current_interval = self.signalTimer.interval()
     # Increase interval by a fixed amount to slow down
-    new_interval = min(1000, current_interval + 10)  # Maximum interval of 1000ms for reasonable slow speed
+    new_interval = min(1000, current_interval + 100)  # Maximum interval of 1000ms for reasonable slow speed
     self.signalTimer.setInterval(new_interval)
 
 def toggleFreqDomain(self):

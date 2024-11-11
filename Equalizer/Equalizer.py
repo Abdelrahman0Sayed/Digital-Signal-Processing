@@ -1,6 +1,7 @@
+from math import ceil
 from PyQt5 import QtCore, QtGui, QtWidgets
 import librosa
-from pyqtgraph import PlotWidget
+import  pyqtgraph as pg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets
@@ -11,7 +12,7 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 from equalizer_functions import changeMode, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram 
-
+from audiogram import Audiogram
 #import Resources_rc
 
 class Ui_MainWindow(QMainWindow):
@@ -21,6 +22,8 @@ class Ui_MainWindow(QMainWindow):
         self.current_mode = "Musical Instruments"
         self.frequency_scale = "Linear"
         self.signalData = ""
+        self.signalTime = ""
+        self.modifiedData = self.signalData
         self.signalTimer = QTimer()
         self.signalTimeIndex = 0
         self.domain="Time Domain"
@@ -78,13 +81,20 @@ class Ui_MainWindow(QMainWindow):
             self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
             self.speed = 3
 
+        if self.modifiedData == "":
+            self.modifiedData = self.signalData
+
         signalPlotting(self) 
         plotSpectrogram(self)
         updateEqualization(self)
         changeMode(self, self.current_mode)
 
     
-
+    def openFrequencyDomainWindow(self):
+        print("Opening Frequency Domain Window")
+        domainWindow = Audiogram(self.signalTime, self.signalData, self.modifiedData)
+        domainWindow.show()
+        domainWindow.exec_()
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -98,20 +108,20 @@ class Ui_MainWindow(QMainWindow):
         self.gridLayout.setObjectName("gridLayout")
 
         # ------------------------------ Icons ---------------------------- #
-        uploadIcon = QtGui.QIcon("images/upload.png")
-        playIcon = QtGui.QIcon("images/play.png")
-        stopIcon = QtGui.QIcon("images/pause.png")
-        signalIcon = QtGui.QIcon("images/signal.png")
-        replayIcon = QtGui.QIcon("images/replay.png")
-        speedUpIcon = QtGui.QIcon("images/up.png")
-        speedDownIcon = QtGui.QIcon("images/down.png")
-        zoomInIcon = QtGui.QIcon("images/zoom_in.png")
-        zoomOutIcon = QtGui.QIcon("images/zoom_out.png")
-        exportIcon = QtGui.QIcon("images/file.png")
+        self.uploadIcon = QtGui.QIcon("images/upload.png")
+        self.playIcon = QtGui.QIcon("images/play.png")
+        self.stopIcon = QtGui.QIcon("images/pause.png")
+        self.signalIcon = QtGui.QIcon("images/signal.png")
+        self.replayIcon = QtGui.QIcon("images/replay.png")
+        self.speedUpIcon = QtGui.QIcon("images/up.png")
+        self.speedDownIcon = QtGui.QIcon("images/down.png")
+        self.zoomInIcon = QtGui.QIcon("images/zoom_in.png")
+        self.zoomOutIcon = QtGui.QIcon("images/zoom_out.png")
+        self.exportIcon = QtGui.QIcon("images/file.png")
 
         # --------------------------- Important Attributes --------------------------- #
         self.equalizerMode= "Musical Instruments"
-        
+    
 
 
 
@@ -151,7 +161,7 @@ class Ui_MainWindow(QMainWindow):
         "}\n"
         "\n"
         "")
-        self.browseFile.setIcon(uploadIcon)
+        self.browseFile.setIcon(self.uploadIcon)
         self.browseFile.setIconSize(QtCore.QSize(25, 25))
         self.browseFile.setObjectName("browseFile")
         self.browseFile.clicked.connect(self.LoadSignalFile)
@@ -174,11 +184,11 @@ class Ui_MainWindow(QMainWindow):
         "padding: 10px;\n"
         "}"
         "")
-        self.frequencyDomainButton.setIcon(signalIcon)
+        self.frequencyDomainButton.setIcon(self.signalIcon)
         self.frequencyDomainButton.setIconSize(QtCore.QSize(25, 25))
         self.frequencyDomainButton.setObjectName("frequency domain")
         self.verticalLayout_2.addWidget(self.frequencyDomainButton)
-        self.frequencyDomainButton.clicked.connect(lambda :toggleFreqDomain(self))
+        self.frequencyDomainButton.clicked.connect(lambda : self.openFrequencyDomainWindow())
 
 
         
@@ -347,7 +357,7 @@ class Ui_MainWindow(QMainWindow):
                 "QPushButton:pressed{\n"
                 "background-color: #1c2973;\n"
                 "}")
-        self.playOriginalSignal.setIcon(playIcon)
+        self.playOriginalSignal.setIcon(self.playIcon)
         self.playOriginalSignal.setIconSize(QtCore.QSize(25, 25))
         self.playOriginalSignal.setObjectName("playAudio1")
         self.verticalLayout_2.addWidget(self.playOriginalSignal)
@@ -395,7 +405,7 @@ class Ui_MainWindow(QMainWindow):
                 "QPushButton:pressed{\n"
                 "background-color: #1c2973;\n"
         "}")
-        self.playFilteredSignal.setIcon(playIcon)
+        self.playFilteredSignal.setIcon(self.playIcon)
         self.playFilteredSignal.setIconSize(QtCore.QSize(25, 25))
         self.playFilteredSignal.setObjectName("playAudio2")
 
@@ -428,7 +438,7 @@ class Ui_MainWindow(QMainWindow):
                 "}\n"
         "")
         self.exportButton.setObjectName("Export Signal")
-        self.exportButton.setIcon(exportIcon)
+        self.exportButton.setIcon(self.exportIcon)
         self.exportButton.setIconSize(QtCore.QSize(25, 25))
         self.verticalLayout_2.addWidget(self.exportButton)
 
@@ -461,7 +471,7 @@ class Ui_MainWindow(QMainWindow):
         
         
         # Normal Graph 1
-        self.graph1 = PlotWidget(self.mainBodyframe)
+        self.graph1 = pg.PlotWidget(self.mainBodyframe)
         self.graph1.setBackground("transparent")
         self.graph1.setObjectName("graph1")
         self.graph1.showGrid(x=True, y=True)
@@ -469,7 +479,7 @@ class Ui_MainWindow(QMainWindow):
         self.horizontalLayout.addWidget(self.graph1)
         
         # Normal Graph 2
-        self.graph2 = PlotWidget(self.mainBodyframe)
+        self.graph2 = pg.PlotWidget(self.mainBodyframe)
         self.graph2.setBackground("transparent")
         self.graph2.showGrid(x=True, y=True)
         self.graph2.setObjectName("graph2")
@@ -483,6 +493,9 @@ class Ui_MainWindow(QMainWindow):
         self.horizontalLayout_4.addItem(spacerItem8)
         
         
+        self.graph1.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
+        self.graph2.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
+
         self.playPause = QtWidgets.QPushButton(self.mainBodyframe)
         font = QtGui.QFont()
         font.setFamily("-apple-system")
@@ -506,7 +519,7 @@ class Ui_MainWindow(QMainWindow):
         "QPushButton:pressed{\n"
         "background-color: #1c2973;\n"
         "}")
-        self.playPause.setIcon(playIcon)
+        self.playPause.setIcon(self.stopIcon)
         self.playPause.setIconSize(QtCore.QSize(25, 25))
         self.playPause.setObjectName("playPause")
         self.playPause.clicked.connect(lambda : togglePlaying(self))
@@ -538,7 +551,7 @@ class Ui_MainWindow(QMainWindow):
         "QPushButton:pressed{\n"
         "background-color: #1c2973;\n"
         "}")
-        self.resetButton.setIcon(replayIcon)
+        self.resetButton.setIcon(self.replayIcon)
         self.resetButton.setIconSize(QtCore.QSize(25, 25))
         self.resetButton.setObjectName("resetButton")
         self.resetButton.clicked.connect(lambda : resetSignal(self))
@@ -570,7 +583,7 @@ class Ui_MainWindow(QMainWindow):
         "background-color: #1c2973;\n"
         "}")
        
-        self.zoomIn.setIcon(zoomInIcon)
+        self.zoomIn.setIcon(self.zoomInIcon)
         self.zoomIn.setIconSize(QtCore.QSize(25, 25))
         self.zoomIn.setObjectName("zoomIn")
         self.horizontalLayout_4.addWidget(self.zoomIn)
@@ -601,7 +614,7 @@ class Ui_MainWindow(QMainWindow):
         "background-color: #1c2973;\n"
         "}")
         self.zoomOut.setText("")
-        self.zoomOut.setIcon(zoomOutIcon)
+        self.zoomOut.setIcon(self.zoomOutIcon)
         self.zoomOut.setIconSize(QtCore.QSize(25, 25))
         self.zoomOut.setObjectName("zoomOut")
         self.horizontalLayout_4.addWidget(self.zoomOut)
@@ -631,7 +644,7 @@ class Ui_MainWindow(QMainWindow):
                 "background-color: #1c2973;\n"
         "}")
         self.speedUp.setObjectName("pushButton_2")
-        self.speedUp.setIcon(speedUpIcon)
+        self.speedUp.setIcon(self.speedUpIcon)
         self.speedUp.setIconSize(QtCore.QSize(25, 25))
         self.horizontalLayout_3.addWidget(self.speedUp)
         self.speedUp.clicked.connect(lambda :speedingUp(self))
@@ -656,7 +669,7 @@ class Ui_MainWindow(QMainWindow):
                 "background-color: #1c2973;\n"
                 "}")
         self.speedDown.setObjectName("pushButton_3")
-        self.speedDown.setIcon(speedDownIcon)
+        self.speedDown.setIcon(self.speedDownIcon)
         self.speedDown.setIconSize(QtCore.QSize(25, 25))
         self.horizontalLayout_3.addWidget(self.speedDown)
         self.speedDown.clicked.connect(lambda :speedingDown(self))
@@ -709,7 +722,6 @@ class Ui_MainWindow(QMainWindow):
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
         self.firstGraphAxis.set_facecolor('white')
         self.firstSpectrogramFig.patch.set_facecolor('#282c37')
-        self.firstGraphAxis.plot([0, 1, 2, 3], [10, 1, 20, 3]) 
         self.spectogram1 = QtWidgets.QWidget(self.mainBodyframe)
         self.spectogram1.setStyleSheet("border-radius: 6px;\n"
         "background: rgba(74, 74, 74, 0);")
@@ -717,6 +729,8 @@ class Ui_MainWindow(QMainWindow):
         self.firstGraphCanvas.draw()
         self.spectrogramLayout.addWidget(self.firstGraphCanvas)
         
+
+
 
 
         
@@ -729,8 +743,6 @@ class Ui_MainWindow(QMainWindow):
         self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
         self.secondGraphAxis.set_facecolor('white')
         self.secondSpectrogramFig.patch.set_facecolor('#282c37')
-        self.secondGraphAxis.plot([0, 1, 2, 3], [10, 1, 20, 3]) 
-        """ ----------- Place Here the matplotlib for the Spectrogram ----------- """
         self.secondGraphCanvas.draw()
         self.spectrogramLayout.addWidget(self.secondGraphCanvas)
         
@@ -780,6 +792,10 @@ class Ui_MainWindow(QMainWindow):
         self.exportButton.clicked.connect(lambda : stopAudio(self))
 
 
+    def sync_pan(self, viewbox, viewrect):
+        pass
+
+
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -810,7 +826,6 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-
     MainWindow.show()
     sys.exit(app.exec_())
 
