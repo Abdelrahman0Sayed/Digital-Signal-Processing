@@ -83,35 +83,38 @@ class Audiogram(QWidget):
     
     
     def plotSignificantFrequencies(self):
-        fft_original_signal = np.fft.fft(self.originalSignal)  # Return Complex Numbers (Real -> Amplitude, Imaginary -> Phase)
-        original_freqs = np.fft.fftfreq(len(self.originalSignal), d=(self.signalsTime[1] - self.signalsTime[0]))  # Frequency bins
-        original_magnitudes = np.abs(fft_original_signal) / len(self.originalSignal)  # Amplitudes
+        # Previous FFT calculations remain the same
+        fft_original_signal = np.fft.fft(self.originalSignal)
+        original_freqs = np.fft.fftfreq(len(self.originalSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
+        original_magnitudes = np.abs(fft_original_signal) / len(self.originalSignal)
 
         fft_modified_signal = np.fft.fft(self.filteredSignal)
-        filtered_freqs =  np.fft.fftfreq(len(self.filteredSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
-        filtered_magnitudes = np.abs(fft_modified_signal) / len(self.filteredSignal)  # Amplitudes
+        filtered_freqs = np.fft.fftfreq(len(self.filteredSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
+        filtered_magnitudes = np.abs(fft_modified_signal) / len(self.filteredSignal)
 
-        # Set a dynamic threshold to detect significant peaks
         original_significant_peaks, original_signal_properties = find_peaks(original_magnitudes)
         filtered_significant_peaks, filtered_signal_properties = find_peaks(filtered_magnitudes)
 
-        original_positive_peaks = original_freqs[original_significant_peaks]
-        original_positive_peaks = original_positive_peaks[original_positive_peaks > 0]
-
-        filtered_positive_peaks = filtered_freqs[filtered_significant_peaks]
-        filtered_positive_peaks = filtered_positive_peaks[filtered_positive_peaks > 0]
-
-
-        if original_significant_peaks.size > 0:
-            # Clear the frequency domain graph and plot the original frequencies
-            self.origianlSignalGraph.clear()
-            self.filteredSignalGraph.clear()
-            # Call the repeat function with the calculated sampling frequency
-          
-            self.origianlSignalGraph.plot(original_freqs, original_magnitudes, pen='b', name='Original Frequency Domain')
-            self.filteredSignalGraph.plot(filtered_freqs, filtered_magnitudes, pen='r', name='Original Frequency Domain')
+        # Reset graph settings
+        self.origianlSignalGraph.clear()
+        self.filteredSignalGraph.clear()
         
-    
+        # Reset to linear scale
+        self.origianlSignalGraph.setLogMode(x=False, y=False)
+        self.filteredSignalGraph.setLogMode(x=False, y=False)
+        
+        # Reset axis ranges
+        self.origianlSignalGraph.enableAutoRange()
+        self.filteredSignalGraph.enableAutoRange()
+        
+        # Reset tick formatting
+        self.origianlSignalGraph.getAxis('bottom').setTicks(None)
+        self.filteredSignalGraph.getAxis('bottom').setTicks(None)
+        
+        # Plot the data
+        self.origianlSignalGraph.plot(original_freqs, original_magnitudes, pen='b', name='Original Frequency Domain')
+        self.filteredSignalGraph.plot(filtered_freqs, filtered_magnitudes, pen='r', name='Filtered Frequency Domain')
+        
     def toggleShape(self):
         print("Switching..")
         if self.frequencyShape == "Frequency Domain":
@@ -122,8 +125,69 @@ class Audiogram(QWidget):
             self.plotSignificantFrequencies()
 
     def plotAudiogram(self):
-        # Put your code here to plot the audiogram.
-        pass
+        # Calculate FFT for both signals
+        fft_original = np.fft.fft(self.originalSignal)
+        fft_filtered = np.fft.fft(self.filteredSignal)
+        
+        # Get frequency bins
+        freqs = np.fft.fftfreq(len(self.originalSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
+        
+        # Standard audiogram frequencies
+        audiogram_freqs = np.array([125, 250, 500, 1000, 2000, 4000, 8000])
+        
+        # Convert to magnitude in dB with proper reference level
+        # Using standard reference level for dB calculation
+        ref_level = 1.0  # Reference level for dB calculation
+        original_magnitudes = 20 * np.log10(np.abs(fft_original) / len(self.originalSignal) / ref_level)
+        filtered_magnitudes = 20 * np.log10(np.abs(fft_filtered) / len(self.filteredSignal) / ref_level)
+        
+        # Keep only positive frequencies and handle zero/negative values in log scale
+        positive_mask = freqs > 0
+        freqs = freqs[positive_mask]
+        original_magnitudes = original_magnitudes[positive_mask]
+        filtered_magnitudes = filtered_magnitudes[positive_mask]
+        
+        # Set minimum dB level
+        min_db = -60
+        original_magnitudes = np.maximum(original_magnitudes, min_db)
+        filtered_magnitudes = np.maximum(filtered_magnitudes, min_db)
+        
+        # Interpolate magnitudes at audiogram frequencies
+        original_interp = np.interp(audiogram_freqs, freqs, original_magnitudes)
+        filtered_interp = np.interp(audiogram_freqs, freqs, filtered_magnitudes)
+        
+        # Clear and setup plots
+        self.origianlSignalGraph.clear()
+        self.filteredSignalGraph.clear()
+        
+        # Set logarithmic x-axis and proper ranges
+        self.origianlSignalGraph.setLogMode(x=True, y=False)
+        self.filteredSignalGraph.setLogMode(x=True, y=False)
+        
+        # Set proper axis ranges
+        self.origianlSignalGraph.setXRange(np.log10(100), np.log10(10000))
+        self.origianlSignalGraph.setYRange(min_db, 20)
+        self.filteredSignalGraph.setXRange(np.log10(100), np.log10(10000))
+        self.filteredSignalGraph.setYRange(min_db, 20)
+        
+        # Custom tick formatter for log scale
+        tick_values = [(freq, str(freq)) for freq in audiogram_freqs]
+        self.origianlSignalGraph.getAxis('bottom').setTicks([tick_values])
+        self.filteredSignalGraph.getAxis('bottom').setTicks([tick_values])
+        
+        # Plot with markers
+        self.origianlSignalGraph.plot(audiogram_freqs, original_interp, pen='b', symbol='o', symbolSize=10)
+        self.filteredSignalGraph.plot(audiogram_freqs, filtered_interp, pen='r', symbol='o', symbolSize=10)
+        
+        # Set labels
+        self.origianlSignalGraph.setLabel('left', 'Amplitude (dB)')
+        self.origianlSignalGraph.setLabel('bottom', 'Frequency (Hz)')
+        self.filteredSignalGraph.setLabel('left', 'Amplitude (dB)')
+        self.filteredSignalGraph.setLabel('bottom', 'Frequency (Hz)')
+        
+        # Add grid
+        self.origianlSignalGraph.showGrid(x=True, y=True)
+        self.filteredSignalGraph.showGrid(x=True, y=True)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)  
