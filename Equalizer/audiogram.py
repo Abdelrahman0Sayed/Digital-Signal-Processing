@@ -58,7 +58,7 @@ class Audiogram(QWidget):
         self.toggleShapeButton.setStyleSheet("""
             QPushButton
             {
-                background-color: #062e51;
+                background-color: #4a5178;
                 border: 2px solid white;
                 color: white;
                 font-size: 20px;

@@ -18,12 +18,12 @@ import os
 #import Resources_rc
 # Add these color constants at the start of setupUi
 COLORS = {
-    'background': '#1E1E2E',  # Dark background
-    'secondary': '#252535',   # Slightly lighter background
-    'accent': '#7AA2F7',     # Soft blue accent
-    'text': '#CDD6F4',       # Soft white text
-    'button': '#394168',     # Button background
-    'button_hover': '#4A5178' # Button hover
+    'background': '#1E1E2E', 
+    'secondary': '#252535',  
+    'accent': '#7AA2F7',   
+    'text': '#CDD6F4',      
+    'button': '#394168',   
+    'button_hover': '#4A5178'
 }
 
 # Add these style constants
