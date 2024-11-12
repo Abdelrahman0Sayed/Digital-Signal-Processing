@@ -11,9 +11,177 @@ from scipy.io import wavfile
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from equalizer_functions import changeMode, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram 
+from equalizer_functions import changeMode, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal 
 from audiogram import Audiogram
+import sys
+import os
 #import Resources_rc
+# Add these color constants at the start of setupUi
+COLORS = {
+    'background': '#1E1E2E',  # Dark background
+    'secondary': '#252535',   # Slightly lighter background
+    'accent': '#7AA2F7',     # Soft blue accent
+    'text': '#CDD6F4',       # Soft white text
+    'button': '#394168',     # Button background
+    'button_hover': '#4A5178' # Button hover
+}
+
+# Add these style constants
+STYLES = {
+    'BUTTON': f"""
+        QPushButton {{
+            background-color: {COLORS['button']};
+            color: {COLORS['text']};
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }}
+        QPushButton:hover {{
+            background-color: {COLORS['button_hover']};
+        }}
+        QPushButton:pressed {{
+            background-color: {COLORS['accent']};
+        }}
+    """,
+    
+    'COMBOBOX': f"""
+        QComboBox {{
+            background-color: {COLORS['secondary']};
+            color: {COLORS['text']};
+            border: 2px solid {COLORS['accent']};
+            border-radius: 6px;
+            padding: 5px 10px;
+            min-width: 150px;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+        }}
+        QComboBox::down-arrow {{
+            image: url(images/dropdown.png);
+            width: 12px;
+            height: 12px;
+        }}
+    """,
+    
+    'SLIDER': f"""
+        QSlider::groove:horizontal {{
+            border: none;
+            height: 6px;
+            background: {COLORS['secondary']};
+            border-radius: 3px;
+        }}
+        QSlider::handle:horizontal {{
+            background: {COLORS['accent']};
+            border: none;
+            width: 16px;
+            height: 16px;
+            margin: -5px 0;
+            border-radius: 8px;
+        }}
+        QSlider::handle:horizontal:hover {{
+            background: {COLORS['button_hover']};
+        }}
+    """,
+    
+    'GRAPH': f"""
+        border: 2px solid {COLORS['accent']};
+        border-radius: 10px;
+        padding: 10px;
+        background-color: {COLORS['background']};
+    """,
+    
+    'CHECKBOX': f"""
+        QCheckBox {{
+            color: {COLORS['text']};
+            spacing: 8px;
+        }}
+        QCheckBox::indicator {{
+            width: 18px;
+            height: 18px;
+            border: 2px solid {COLORS['accent']};
+            border-radius: 4px;
+        }}
+        QCheckBox::indicator:checked {{
+            background-color: {COLORS['accent']};
+        }}
+    """
+}
+
+
+STYLES['COMBOBOX'] = f"""
+    QComboBox {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        border: 2px solid {COLORS['accent']};
+        border-radius: 6px;
+        padding: 5px 10px;
+        min-width: 150px;
+    }}
+    QComboBox::drop-down {{
+        border: none;
+    }}
+    QComboBox::down-arrow {{
+        image: url(images/dropdown.png);
+        width: 12px;
+        height: 12px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        selection-background-color: {COLORS['accent']};
+        selection-color: {COLORS['text']};
+        border: 1px solid {COLORS['accent']};
+        border-radius: 4px;
+    }}
+"""
+STYLES['COMBOBOX'] = f"""
+    QComboBox {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        border: 2px solid {COLORS['accent']};
+        border-radius: 6px;
+        padding: 5px 10px;
+        min-width: 150px;
+    }}
+    QComboBox::drop-down {{
+        border: none;
+    }}
+    QComboBox::down-arrow {{
+        image: url(images/dropdown.png);
+        width: 12px;
+        height: 12px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        selection-background-color: {COLORS['accent']};
+        selection-color: {COLORS['text']};
+        border: 1px solid {COLORS['accent']};
+        border-radius: 4px;
+    }}
+"""
+
+STYLES['SPECTROGRAM'] = f"""
+    border: 2px solid {COLORS['accent']};
+    border-radius: 10px;
+    padding: 5px;
+    background-color: {COLORS['secondary']};
+"""
+
+# Update fonts
+FONT_FAMILY = "Segoe UI"  # Modern system font
+def setup_fonts(self):
+    font = QtGui.QFont(FONT_FAMILY)
+    font.setPointSize(10)
+    self.setFont(font)
+    
+    title_font = QtGui.QFont(FONT_FAMILY)
+    title_font.setPointSize(12)
+    title_font.setBold(True)
+    self.modeLabel.setFont(title_font)
 
 class Ui_MainWindow(QMainWindow):
 
@@ -56,8 +224,36 @@ class Ui_MainWindow(QMainWindow):
         self.sliders = []   
         self.sliderLabels = []
 
+        
 
 
+    # Apply styles to main components
+    def apply_modern_styles(self):
+        # Buttons
+        for button in [self.browseFile, self.playPause, self.resetButton, 
+                    self.zoomIn, self.zoomOut, self.speedUp, self.speedDown]:
+            button.setStyleSheet(STYLES['BUTTON'])
+        
+        # ComboBox
+        self.modeList.setStyleSheet(STYLES['COMBOBOX'])
+        
+        # Graphs
+        self.graph1.setStyleSheet(STYLES['GRAPH'])
+        self.graph2.setStyleSheet(STYLES['GRAPH'])
+        
+        # Spectrograms
+        self.firstGraphCanvas.setStyleSheet(STYLES['GRAPH'])
+        self.secondGraphCanvas.setStyleSheet(STYLES['GRAPH'])
+        
+        # Checkbox
+        self.spectogramCheck.setStyleSheet(STYLES['CHECKBOX'])
+        
+        # Main frame
+        self.mainBodyframe.setStyleSheet(f"""
+            background-color: {COLORS['background']};
+            border-radius: 15px;
+            margin: 10px;
+        """)
 
     def LoadSignalFile(self):
         print("Lets Choose a file")
@@ -81,7 +277,8 @@ class Ui_MainWindow(QMainWindow):
             self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
             self.speed = 3
 
-        if self.modifiedData == "":
+        # Fixed code
+        if isinstance(self.modifiedData, str) or len(getattr(self.modifiedData, 'shape', [])) == 0:
             self.modifiedData = self.signalData
 
         signalPlotting(self) 
@@ -99,7 +296,12 @@ class Ui_MainWindow(QMainWindow):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1329, 911)
-        MainWindow.setStyleSheet("background-color: #1b1d23;color:white;")
+        MainWindow.setStyleSheet(f"""
+    QMainWindow {{
+        background-color: {COLORS['background']};
+        color: {COLORS['text']};
+    }}
+""")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.centralwidget)
@@ -127,12 +329,14 @@ class Ui_MainWindow(QMainWindow):
 
         # ---------------------- Setup the side bar ---------------------- #
         self.sideBarFrame = QtWidgets.QFrame(self.centralwidget)
-        self.sideBarFrame.setStyleSheet("\n"
-        "   /*border: 1px solid #c0c0c0; /* Border color and width */\n"
-        "    padding: 5px; /* Padding around the list items */\n"
-        "background-color: #1b1d23;\n"
-        "border: 1px solid rgba(255, 255, 255, 0);\n"
-        "")
+        self.sideBarFrame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {COLORS['secondary']};
+                border-radius: 15px;
+                margin: 5px;
+                padding: 10px;
+            }}
+        """)
         self.sideBarFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.sideBarFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.sideBarFrame.setObjectName("sideBarFrame")
@@ -357,6 +561,8 @@ class Ui_MainWindow(QMainWindow):
                 "QPushButton:pressed{\n"
                 "background-color: #1c2973;\n"
                 "}")
+
+        self.playOriginalSignal.setStyleSheet(STYLES['BUTTON'])
         self.playOriginalSignal.setIcon(self.playIcon)
         self.playOriginalSignal.setIconSize(QtCore.QSize(25, 25))
         self.playOriginalSignal.setObjectName("playAudio1")
@@ -405,6 +611,7 @@ class Ui_MainWindow(QMainWindow):
                 "QPushButton:pressed{\n"
                 "background-color: #1c2973;\n"
         "}")
+        self.playFilteredSignal.setStyleSheet(STYLES['BUTTON'])
         self.playFilteredSignal.setIcon(self.playIcon)
         self.playFilteredSignal.setIconSize(QtCore.QSize(25, 25))
         self.playFilteredSignal.setObjectName("playAudio2")
@@ -441,6 +648,7 @@ class Ui_MainWindow(QMainWindow):
         self.exportButton.setIcon(self.exportIcon)
         self.exportButton.setIconSize(QtCore.QSize(25, 25))
         self.verticalLayout_2.addWidget(self.exportButton)
+        self.exportButton.clicked.connect(lambda : export_signal(self))
 
 
 
@@ -493,9 +701,14 @@ class Ui_MainWindow(QMainWindow):
         self.horizontalLayout_4.addItem(spacerItem8)
         
         
-        self.graph1.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
-        self.graph2.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
-
+        #self.graph1.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
+        #self.graph2.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
+        self.graph2.getViewBox().sigRangeChanged.connect(
+            lambda viewbox, rect: self.sync_pan(viewbox, self.graph1.getViewBox())
+        )
+        self.graph1.getViewBox().sigRangeChanged.connect(
+            lambda viewbox, rect: self.sync_pan(viewbox, self.graph2.getViewBox())
+        )
         self.playPause = QtWidgets.QPushButton(self.mainBodyframe)
         font = QtGui.QFont()
         font.setFamily("-apple-system")
@@ -717,35 +930,52 @@ class Ui_MainWindow(QMainWindow):
         # Spectrogram Layout
         self.spectrogramLayout = QtWidgets.QHBoxLayout()
         self.spectrogramLayout.setObjectName("spectrogramLayout")
+        self.spectrogramLayout.setSpacing(20)  # Add spacing between spectrograms
+        self.spectrogramLayout.setContentsMargins(10, 10, 10, 10)  # Add margins
+
+        # First Spectrogram
         self.firstSpectrogramFig = Figure(figsize=(5, 4))
         self.firstGraphCanvas = FigureCanvas(self.firstSpectrogramFig)
+        self.firstGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
-        self.firstGraphAxis.set_facecolor('white')
-        self.firstSpectrogramFig.patch.set_facecolor('#282c37')
+
+        # Style the first spectrogram
+        self.firstGraphAxis.set_facecolor(COLORS['background'])
+        self.firstSpectrogramFig.patch.set_facecolor(COLORS['secondary'])
+        self.firstGraphAxis.tick_params(colors=COLORS['text'])
+        self.firstGraphAxis.xaxis.label.set_color(COLORS['text'])
+        self.firstGraphAxis.yaxis.label.set_color(COLORS['text'])
+        for spine in self.firstGraphAxis.spines.values():
+            spine.set_color(COLORS['accent'])
+
+        # Create container for first spectrogram
         self.spectogram1 = QtWidgets.QWidget(self.mainBodyframe)
-        self.spectogram1.setStyleSheet("border-radius: 6px;\n"
-        "background: rgba(74, 74, 74, 0);")
-        self.spectogram1.setObjectName("spectogram1")
+        self.spectogram1.setStyleSheet(STYLES['SPECTROGRAM'])
         self.firstGraphCanvas.draw()
         self.spectrogramLayout.addWidget(self.firstGraphCanvas)
-        
 
-
-
-
-        
-        # Second Spectrogram Widget
-        self.spectogram2 = QtWidgets.QWidget(self.mainBodyframe)
-        self.spectogram2.setStyleSheet("border-radius: 6px;\n""background: rgba(74, 74, 74, 0);")
-        self.spectogram2.setObjectName("spectogram2")
+        # Second Spectrogram
         self.secondSpectrogramFig = Figure(figsize=(5, 4))
         self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
+        self.secondGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
         self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
-        self.secondGraphAxis.set_facecolor('white')
-        self.secondSpectrogramFig.patch.set_facecolor('#282c37')
+
+        # Style the second spectrogram
+        self.secondGraphAxis.set_facecolor(COLORS['background'])
+        self.secondSpectrogramFig.patch.set_facecolor(COLORS['secondary'])
+        self.secondGraphAxis.tick_params(colors=COLORS['text'])
+        self.secondGraphAxis.xaxis.label.set_color(COLORS['text'])
+        self.secondGraphAxis.yaxis.label.set_color(COLORS['text'])
+        for spine in self.secondGraphAxis.spines.values():
+            spine.set_color(COLORS['accent'])
+
+        # Create container for second spectrogram
+        self.spectogram2 = QtWidgets.QWidget(self.mainBodyframe)
+        self.spectogram2.setStyleSheet(STYLES['SPECTROGRAM'])
         self.secondGraphCanvas.draw()
         self.spectrogramLayout.addWidget(self.secondGraphCanvas)
-        
+
+        # Add spectrograms to main layout
         self.verticalGraphs.addLayout(self.spectrogramLayout)
         self.verticalGraphs.setStretch(0, 2)
         self.verticalGraphs.setStretch(1, 1)
@@ -777,12 +1007,6 @@ class Ui_MainWindow(QMainWindow):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
-        
-        # Add frequency scale toggle button
-        self.scaleToggle = QtWidgets.QPushButton(self.mainBodyframe)
-        self.scaleToggle.setText("Toggle Frequency Scale")
-        self.scaleToggle.clicked.connect(lambda : toggleFrequencyScale(self))
-        self.verticalLayout_2.addWidget(self.scaleToggle)
 
         # Connect audio buttons
         self.playOriginalSignal.clicked.connect(lambda : playOriginalAudio(self))
@@ -791,9 +1015,40 @@ class Ui_MainWindow(QMainWindow):
         # Add stop button functionality to export button (or add a new stop button)
         self.exportButton.clicked.connect(lambda : stopAudio(self))
 
+        self.apply_modern_styles()
+        setup_fonts(self)
 
+
+    # Then modify sync_pan function:
     def sync_pan(self, viewbox, viewrect):
-        pass
+        """
+        Synchronize panning between two viewboxes
+        
+        Args:
+            viewbox: Source viewbox that triggered the pan
+            viewrect: Target viewbox to be synchronized
+        """
+        if viewbox is None or viewrect is None:
+            return
+            
+        # Get the current x-axis range from source viewbox state
+        view_state = viewbox.state
+        x_min = view_state['viewRange'][0][0]
+        x_max = view_state['viewRange'][0][1]
+
+        y_min = view_state['viewRange'][1][0]
+        y_max = view_state['viewRange'][1][1]
+
+
+        
+        # Block signals temporarily to prevent recursive updates
+        viewrect.blockSignals(True)
+        viewrect.setRange(xRange=(x_min, x_max), padding=0)
+        viewrect.setYRange(y_min, y_max, padding=0)
+
+        viewrect.blockSignals(False)
+
+
 
 
 
@@ -826,6 +1081,13 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
+    # open the file dialog
+    ui.browseFile.click()
+    signalPlotting(ui)
+    plotSpectrogram(ui)
+    updateEqualization(ui)
+    changeMode(ui, ui.current_mode)
+
     MainWindow.show()
     sys.exit(app.exec_())
 
