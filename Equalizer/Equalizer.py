@@ -15,7 +15,24 @@ from equalizer_functions import changeMode, updateEqualization, toggleFrequencyS
 from audiogram import Audiogram
 import sys
 import os
-#import Resources_rc
+
+
+# Add theme switching capability
+THEMES = {
+    'DARK': {
+        'background': '#1E1E2E',
+        'secondary': '#252535',
+        'accent': '#7AA2F7',
+        'text': '#CDD6F4'
+    },
+    'LIGHT': {
+        'background': '#FFFFFF',
+        'secondary': '#F0F0F0', 
+        'accent': '#2962FF',
+        'text': '#000000'
+    }
+}
+
 # Add these color constants at the start of setupUi
 COLORS = {
     'background': '#1E1E2E', 
@@ -171,17 +188,125 @@ STYLES['SPECTROGRAM'] = f"""
     background-color: {COLORS['secondary']};
 """
 
-# Update fonts
-FONT_FAMILY = "Segoe UI"  # Modern system font
-def setup_fonts(self):
-    font = QtGui.QFont(FONT_FAMILY)
-    font.setPointSize(10)
-    self.setFont(font)
+# First, update the STYLES and COLORS constants at the top of the file
+
+# Update font constants
+FONT_STYLES = {
+    'REGULAR': {
+        'family': 'Segoe UI',
+        'size': 10,
+        'weight': 'normal'
+    },
+    'HEADING': {
+        'family': 'Segoe UI',
+        'size': 12,
+        'weight': 'bold'
+    },
+    'BUTTON': {
+        'family': 'Segoe UI',
+        'size': 10,
+        'weight': 'bold'
+    }
+}
+
+# Update the ComboBox style
+STYLES['COMBOBOX'] = f"""
+    QComboBox {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        border: 2px solid {COLORS['accent']};
+        border-radius: 8px;
+        padding: 8px 15px;
+        min-width: 200px;
+        min-height: 40px;
+        font-family: {FONT_STYLES['REGULAR']['family']};
+        font-size: 14px;
+        font-weight: bold;
+    }}
     
-    title_font = QtGui.QFont(FONT_FAMILY)
-    title_font.setPointSize(12)
-    title_font.setBold(True)
-    self.modeLabel.setFont(title_font)
+    QComboBox:hover {{
+        border-color: {COLORS['button_hover']};
+    }}
+    
+    QComboBox::drop-down {{
+        border: none;
+        width: 30px;
+    }}
+    
+    QComboBox::down-arrow {{
+        image: url(images/dropdown.png);
+        width: 16px;
+        height: 16px;
+    }}
+    
+    QComboBox QAbstractItemView {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        selection-background-color: {COLORS['accent']};
+        selection-color: {COLORS['text']};
+        border: 1px solid {COLORS['accent']};
+        border-radius: 4px;
+        padding: 4px;
+        font-size: 14px;
+    }}
+"""
+
+# Update FONT_STYLES with fallback fonts
+FONT_STYLES = {
+    'REGULAR': {
+        'family': 'Segoe UI, Arial, Helvetica, sans-serif',
+        'size': 10,
+        'weight': 'normal'
+    },
+    'HEADING': {
+        'family': 'Segoe UI, Arial, Helvetica, sans-serif', 
+        'size': 12,
+        'weight': 'bold'
+    },
+    'BUTTON': {
+        'family': 'Segoe UI, Arial, Helvetica, sans-serif',
+        'size': 10,
+        'weight': 'bold'
+    }
+}
+
+def apply_fonts(self):
+    """Apply consistent fonts throughout the application"""
+    # Force font database update
+    QtGui.QFontDatabase.addApplicationFont(":/fonts/segoe-ui.ttf")
+    
+    # Default application font - set it on the QApplication instance
+    app = QtWidgets.QApplication.instance()
+    default_font = QtGui.QFont(FONT_STYLES['REGULAR']['family'].split(',')[0])
+    default_font.setPointSize(FONT_STYLES['REGULAR']['size'])
+    app.setFont(default_font)
+    
+    # Headings
+    heading_font = QtGui.QFont(FONT_STYLES['HEADING']['family'].split(',')[0])
+    heading_font.setPointSize(FONT_STYLES['HEADING']['size'])
+    heading_font.setBold(True)
+    for label in [self.modeLabel, self.originalSignal, self.filteredSignal]:
+        label.setFont(heading_font)
+        label.style().unpolish(label)  # Force style refresh
+        label.style().polish(label)
+    
+    # Buttons with bold font
+    button_font = QtGui.QFont(FONT_STYLES['BUTTON']['family'].split(',')[0])
+    button_font.setPointSize(FONT_STYLES['BUTTON']['size'])
+    button_font.setBold(True)
+    for button in [self.browseFile, self.playPause, self.resetButton, 
+                  self.zoomIn, self.zoomOut, self.speedUp, self.speedDown,
+                  self.playOriginalSignal, self.playFilteredSignal, self.exportButton]:
+        button.setFont(button_font)
+        button.style().unpolish(button)  # Force style refresh
+        button.style().polish(button)
+
+    # ComboBox with larger bold font
+    combo_font = QtGui.QFont(FONT_STYLES['REGULAR']['family'].split(',')[0], 14)
+    combo_font.setBold(True)
+    self.modeList.setFont(combo_font)
+    self.modeList.style().unpolish(self.modeList)
+    self.modeList.style().polish(self.modeList)
 
 class Ui_MainWindow(QMainWindow):
 
@@ -197,28 +322,26 @@ class Ui_MainWindow(QMainWindow):
         self.domain="Time Domain"
         
         
-        # Frequency ranges for different instruments (Hz)
         self.instrument_ranges = {
-            "Guitar": [(0, 170)],
-            "Flute": [(170, 250)],
-            "Harmonica": [(250, 400)],
-            "Xylophone": [(400, 1000)]  
+            "Guitar": [(0, 170)],      # Low frequency range
+            "Flute": [(170, 250)],     # Mid frequency range
+            "Harmonica": [(250, 400)], # Upper mid range
+            "Xylophone": [(400, 1000)] # High frequency range
         }
-        
-        # Frequency ranges for animal sounds (Hz)
+
+        # Animal sounds matching dataset ranges
         self.animal_ranges = {
-            "Dog": [(500, 1500)],
-            "Cat": [(400, 1000)],
-            "Bird": [(2000, 8000)],
-            "Cow": [(100, 600)]
+            "Dogs": [(0, 450)],        # Low frequency range
+            "Wolves": [(450, 1100)],   # Mid frequency range
+            "Crow": [(1100, 3000)],    # High frequency range
+            "Bat": [(3000, 9000)]      # Ultrasonic range
         }
-        
-        # Frequency ranges for ECG abnormalities
+
+        # ECG ranges matching dataset
         self.ecg_ranges = {
-            "Normal": [(0.5, 40)],
-            "Tachycardia": [(60, 100)],
-            "Bradycardia": [(30, 60)],
-            "Arrhythmia": [(100, 150)]
+            "Normal": [(0, 6.5)],                    # Normal ECG
+            "Ventricular_Complex": [(0, 5)],         # Ventricular tachycardia + couplets
+            "Ventricular_Couplets": [(0, 8)]         # Pure couplets
         }
 
         self.sliders = []   
@@ -257,34 +380,48 @@ class Ui_MainWindow(QMainWindow):
 
     def LoadSignalFile(self):
         print("Lets Choose a file")
-        file_path= ""
+        file_path = ""
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Signal File", "", "File Extension (*.wav *.mp3 *.csv)", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Signal File", "", 
+                                                "File Extension (*.wav *.mp3 *.csv)", 
+                                                options=options)
         
-        # Get the extension of the file
-        extension = file_path.split(".")[-1]
-        self.samplingRate = 0
-        if extension == "wav" or extension == "mp3":
-            self.signalData, self.samplingRate = librosa.load(file_path)
-            duration = librosa.get_duration(y=self.signalData, sr=self.samplingRate)
-            self.signalTime = np.linspace(0, duration, len(self.signalData))
+        if file_path:
+            try:
+                # Show spinner
+                self.loadingSpinner.show()
+                QtWidgets.QApplication.processEvents()  # Force UI update
+                
+                # Get the extension of the file
+                extension = file_path.split(".")[-1]
+                self.samplingRate = 0
+                
+                if extension == "wav" or extension == "mp3":
+                    self.signalData, self.samplingRate = librosa.load(file_path)
+                    duration = librosa.get_duration(y=self.signalData, sr=self.samplingRate)
+                    self.signalTime = np.linspace(0, duration, len(self.signalData))
 
-        elif extension == "csv":
-            fileData = pd.read_csv(
-                file_path, delimiter=',', skiprows=1)  # Skip header row
-            self.signalTime = np.array(fileData.iloc[:, 0].astype(float).tolist())
-            self.signalData = np.array(fileData.iloc[:, 1].astype(float).tolist())
-            self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
-            self.speed = 3
+                elif extension == "csv":
+                    fileData = pd.read_csv(file_path, delimiter=',', skiprows=1)
+                    self.signalTime = np.array(fileData.iloc[:, 0].astype(float).tolist())
+                    self.signalData = np.array(fileData.iloc[:, 1].astype(float).tolist())
+                    self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
+                    self.speed = 3
 
-        # Fixed code
-        if isinstance(self.modifiedData, str) or len(getattr(self.modifiedData, 'shape', [])) == 0:
-            self.modifiedData = self.signalData
+                if isinstance(self.modifiedData, str) or len(getattr(self.modifiedData, 'shape', [])) == 0:
+                    self.modifiedData = self.signalData
 
-        signalPlotting(self) 
-        plotSpectrogram(self)
-        updateEqualization(self)
-        changeMode(self, self.current_mode)
+                signalPlotting(self) 
+                plotSpectrogram(self)
+                updateEqualization(self)
+                changeMode(self, self.current_mode)
+                
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", f"Error loading file: {str(e)}")
+            
+            finally:
+                # Hide spinner when done
+                self.loadingSpinner.hide()
 
     
     def openFrequencyDomainWindow(self):
@@ -310,16 +447,20 @@ class Ui_MainWindow(QMainWindow):
         self.gridLayout.setObjectName("gridLayout")
 
         # ------------------------------ Icons ---------------------------- #
-        self.uploadIcon = QtGui.QIcon("images/upload.png")
-        self.playIcon = QtGui.QIcon("images/play.png")
-        self.stopIcon = QtGui.QIcon("images/pause.png")
-        self.signalIcon = QtGui.QIcon("images/signal.png")
-        self.replayIcon = QtGui.QIcon("images/replay.png")
-        self.speedUpIcon = QtGui.QIcon("images/up.png")
-        self.speedDownIcon = QtGui.QIcon("images/down.png")
-        self.zoomInIcon = QtGui.QIcon("images/zoom_in.png")
-        self.zoomOutIcon = QtGui.QIcon("images/zoom_out.png")
-        self.exportIcon = QtGui.QIcon("images/file.png")
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Create absolute paths to images
+        self.uploadIcon = QtGui.QIcon(os.path.join(base_dir, "images", "upload.png"))
+        self.playIcon = QtGui.QIcon(os.path.join(base_dir, "images", "play.png"))
+        self.stopIcon = QtGui.QIcon(os.path.join(base_dir, "images", "pause.png"))
+        self.signalIcon = QtGui.QIcon(os.path.join(base_dir, "images", "signal.png"))
+        self.replayIcon = QtGui.QIcon(os.path.join(base_dir, "images", "replay.png"))
+        self.speedUpIcon = QtGui.QIcon(os.path.join(base_dir, "images", "up.png"))
+        self.speedDownIcon = QtGui.QIcon(os.path.join(base_dir, "images", "down.png"))
+        self.zoomInIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_in.png"))
+        self.zoomOutIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_out.png"))
+        self.exportIcon = QtGui.QIcon(os.path.join(base_dir, "images", "file.png"))
 
         # --------------------------- Important Attributes --------------------------- #
         self.equalizerMode= "Musical Instruments"
@@ -384,7 +525,7 @@ class Ui_MainWindow(QMainWindow):
         "    border-radius: 10px;\n"
         "    color:white;\n"
         "    border: 2px solid white;\n"
-        "    font-size: 20px;\n"
+        "    font-size: 16px;\n"
         "padding: 10px;\n"
         "}"
         "")
@@ -683,6 +824,7 @@ class Ui_MainWindow(QMainWindow):
         self.graph1.setBackground("transparent")
         self.graph1.setObjectName("graph1")
         self.graph1.showGrid(x=True, y=True)
+
         self.graph1.setStyleSheet("border-radius: 6px;border: 2px solid white;")
         self.horizontalLayout.addWidget(self.graph1)
         
@@ -1015,8 +1157,29 @@ class Ui_MainWindow(QMainWindow):
         # Add stop button functionality to export button (or add a new stop button)
         self.exportButton.clicked.connect(lambda : stopAudio(self))
 
+        # Add loading spinner
+        self.loadingSpinner = QtWidgets.QProgressBar(self.sideBarFrame)
+        self.loadingSpinner.setStyleSheet(f"""
+            QProgressBar {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 5px;
+                text-align: center;
+                color: {COLORS['text']};
+                background-color: {COLORS['secondary']};
+            }}
+            QProgressBar::chunk {{
+                background-color: {COLORS['accent']};
+                width: 10px;
+                margin: 0.5px;
+            }}
+        """)
+        self.loadingSpinner.setMaximum(0)  # Makes it an infinite spinner
+        self.loadingSpinner.setMinimum(0)
+        self.loadingSpinner.hide()  # Hidden by default
+        self.verticalLayout_2.addWidget(self.loadingSpinner)
+
         self.apply_modern_styles()
-        setup_fonts(self)
+        apply_fonts(self)
 
 
     # Then modify sync_pan function:
@@ -1081,14 +1244,16 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
+    MainWindow.show()
     # open the file dialog
     ui.browseFile.click()
+    
     signalPlotting(ui)
     plotSpectrogram(ui)
     updateEqualization(ui)
     changeMode(ui, ui.current_mode)
 
-    MainWindow.show()
+    
     sys.exit(app.exec_())
 
 
