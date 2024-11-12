@@ -17,83 +17,258 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 from scipy import signal
+import time
+
+
+COLORS = {
+    'background': '#1E1E2E',  # Dark background
+    'secondary': '#252535',   # Slightly lighter background
+    'accent': '#7AA2F7',     # Soft blue accent
+    'text': '#CDD6F4',       # Soft white text
+    'button': '#394168',     # Button background
+    'button_hover': '#4A5178' # Button hover
+}
+
+# Add these style constants
+STYLES = {
+    'BUTTON': f"""
+        QPushButton {{
+            background-color: {COLORS['button']};
+            color: {COLORS['text']};
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }}
+        QPushButton:hover {{
+            background-color: {COLORS['button_hover']};
+        }}
+        QPushButton:pressed {{
+            background-color: {COLORS['accent']};
+        }}
+    """,
+    
+    'COMBOBOX': f"""
+        QComboBox {{
+            background-color: {COLORS['secondary']};
+            color: {COLORS['text']};
+            border: 2px solid {COLORS['accent']};
+            border-radius: 6px;
+            padding: 5px 10px;
+            min-width: 150px;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+        }}
+        QComboBox::down-arrow {{
+            image: url(images/dropdown.png);
+            width: 12px;
+            height: 12px;
+        }}
+    """,
+    
+    'SLIDER': f"""
+        QSlider::groove:horizontal {{
+            border: none;
+            height: 6px;
+            background: {COLORS['secondary']};
+            border-radius: 3px;
+        }}
+        QSlider::handle:horizontal {{
+            background: {COLORS['accent']};
+            border: none;
+            width: 16px;
+            height: 16px;
+            margin: -5px 0;
+            border-radius: 8px;
+        }}
+        QSlider::handle:horizontal:hover {{
+            background: {COLORS['button_hover']};
+        }}
+    """,
+    
+    'GRAPH': f"""
+        border: 2px solid {COLORS['accent']};
+        border-radius: 10px;
+        padding: 10px;
+        background-color: {COLORS['background']};
+    """,
+    
+    'CHECKBOX': f"""
+        QCheckBox {{
+            color: {COLORS['text']};
+            spacing: 8px;
+        }}
+        QCheckBox::indicator {{
+            width: 18px;
+            height: 18px;
+            border: 2px solid {COLORS['accent']};
+            border-radius: 4px;
+        }}
+        QCheckBox::indicator:checked {{
+            background-color: {COLORS['accent']};
+        }}
+    """
+}
+
+
+
+# Add to STYLES dictionary
+STYLES['SLIDER_CONTAINER'] = f"""
+    QWidget {{
+        background-color: {COLORS['secondary']};
+        border-radius: 10px;
+        padding: 15px;
+        margin: 5px;
+    }}
+"""
+
+
+STYLES['SLIDER_LABEL'] = f"""
+    QLabel {{
+        color: {COLORS['text']};
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        padding: 5px 0;
+    }}
+"""
+
+# Update the STYLES['SLIDER'] to include vertical slider styles
+STYLES['SLIDER'] = f"""
+    QSlider {{
+        background: transparent;
+    }}
+    QSlider::groove:vertical {{
+        background: {COLORS['button']};
+        width: 6px;
+        border-radius: 3px;
+    }}
+    QSlider::handle:vertical {{
+        background: {COLORS['accent']};
+        border: none;
+        height: 18px;
+        width: 18px;
+        margin: 0 -6px;
+        border-radius: 9px;
+    }}
+    QSlider::handle:vertical:hover {{
+        background: {COLORS['button_hover']};
+    }}
+    QSlider::sub-page:vertical {{
+        background: {COLORS['secondary']};
+        border-radius: 3px;
+    }}
+    QSlider::add-page:vertical {{
+        background: {COLORS['accent']};
+        border-radius: 3px;
+    }}
+"""
 
 def changeMode(self, mode):
     self.current_mode = mode
     
-    # Clear existing sliders
-    for slider in self.sliders:
-        slider.deleteLater()
-    for label in self.sliderLabels:
-        label.deleteLater()
+    # Clear existing layout first
+    for i in reversed(range(self.horizontalLayout_5.count())): 
+        widget = self.horizontalLayout_5.itemAt(i).widget()
+        if widget:
+            widget.deleteLater()
     
+    # Reset lists
     self.sliders = []
     self.sliderLabels = []
     
+    # Create new sliders based on mode
     if mode == "Uniform Range":
-        # Create 10 uniform range sliders
         max_freq = self.samplingRate // 2 if hasattr(self, 'samplingRate') else 22050
         band_width = max_freq / 10
         
         for i in range(10):
             low = i * band_width
             high = (i + 1) * band_width
-            createSlider(self,f"{int(low)}-\n{int(high)}Hz")
+            createSlider(self, f"{int(low)}-\n{int(high)}Hz")
             
     elif mode == "Musical Instruments":
         for instrument in self.instrument_ranges.keys():
-            createSlider(self,instrument)
+            createSlider(self, instrument)
             
     elif mode == "Animal Sounds":
         for animal in self.animal_ranges.keys():
-            createSlider(self,animal)
+            createSlider(self, animal)
             
     elif mode == "ECG Abnormalities":
         for condition in self.ecg_ranges.keys():
-            createSlider(self,condition)
-    
+            createSlider(self, condition)
+
+    # Force layout update
+    self.horizontalLayout_5.update()
     updateEqualization(self)
-    
 
 def createSlider(self, label_text):
-    sliderColumn = QtWidgets.QVBoxLayout()
+    # Create container widget
+    container = QtWidgets.QWidget()
+    container.setFixedWidth(100)  # Set fixed width for consistency
+    container.setStyleSheet(STYLES['SLIDER_CONTAINER'])
+    container_layout = QtWidgets.QVBoxLayout(container)
+    container_layout.setContentsMargins(5, 10, 5, 10)
     
-    slider = QtWidgets.QSlider()
-    slider.setOrientation(QtCore.Qt.Vertical)
+    # Create slider first
+    slider = QtWidgets.QSlider(QtCore.Qt.Vertical)
     slider.setMinimum(0)
     slider.setMaximum(200)
     slider.setValue(100)
-    slider.setMinimumHeight(150)
-    slider.valueChanged.connect(lambda: updateEqualization(self))
-    self.sliders.append(slider)
+    slider.setFixedHeight(150)
+    slider.setStyleSheet(STYLES['SLIDER'])
     
+    # Create label
     label = QtWidgets.QLabel(label_text)
-    label.setMinimumWidth(60)
-    self.sliderLabels.append(label)
+    label.setStyleSheet(STYLES['SLIDER_LABEL'])
+    label.setAlignment(QtCore.Qt.AlignCenter)
+    label.setWordWrap(True)  # Allow text wrapping
     
-    sliderColumn.addWidget(slider, alignment=QtCore.Qt.AlignHCenter)
-    sliderColumn.addWidget(label, alignment=QtCore.Qt.AlignHCenter)
-    self.horizontalLayout_5.addLayout(sliderColumn)
-
+    # Add widgets to container
+    container_layout.addWidget(slider, alignment=QtCore.Qt.AlignHCenter)
+    container_layout.addWidget(label, alignment=QtCore.Qt.AlignHCenter)
+    container_layout.setStretch(0, 2)  # Give slider more vertical space
+    container_layout.setStretch(1, 1)  # Give label less vertical space
+    
+    # Store references and connect signal
+    self.sliders.append(slider)
+    self.sliderLabels.append(label)
+    slider.valueChanged.connect(lambda: updateEqualization(self))
+    
+    # Add to layout
+    self.horizontalLayout_5.addWidget(container)
+    return container
 
 def updateEqualization(self):
-    signal_fft = np.fft.fft(self.signalData)
-    frequencies = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
+    # Throttle updates
+    if hasattr(self, '_last_update') and time.time() - self._last_update < 0.1:
+        return
+    self._last_update = time.time()
+
+    # Cache FFT results if not already cached
+    if not hasattr(self, '_cached_fft'):
+        self._cached_fft = np.fft.fft(self.signalData)
+        self._cached_freqs = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
+
+    # Work with cached FFT
+    signal_fft = self._cached_fft.copy()
+    frequencies = self._cached_freqs
     gains = [slider.value()/100 for slider in self.sliders]
 
+    # Apply equalization
     if self.current_mode == "Uniform Range":
-        # Apply uniform range equalization
         max_freq = self.samplingRate // 2
         band_width = max_freq / 10
         
+        # Vectorized operation instead of loop
         for i, gain in enumerate(gains):
-            low_freq = i * band_width
-            high_freq = (i + 1) * band_width
-            freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+            freq_mask = (np.abs(frequencies) >= i * band_width) & (np.abs(frequencies) < (i + 1) * band_width)
             signal_fft[freq_mask] *= gain
-            
     else:
-        # Get appropriate frequency ranges for current mode
         if self.current_mode == "Musical Instruments":
             ranges = self.instrument_ranges
         elif self.current_mode == "Animal Sounds":
@@ -101,38 +276,37 @@ def updateEqualization(self):
         elif self.current_mode == "ECG Abnormalities":
             ranges = self.ecg_ranges
             
-        # Apply gains to corresponding frequency ranges
         for (name, freq_ranges), gain in zip(ranges.items(), gains):
             for low_freq, high_freq in freq_ranges:
                 freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
                 signal_fft[freq_mask] *= gain
-    
+
     # Convert back to time domain
-    self.modifiedData = modified_signal = np.real(np.fft.ifft(signal_fft))
-    
-    # Update plot with appropriate frequency scale
-    # self.graph2.clear()
-    # if self.frequency_scale == "Audiogram" :
-    #     freq_mask = self.frequencies > 0
-    #     self.graph2.plot(np.log10(self.frequencies[freq_mask]), 
-    #                     20 * np.log10(np.abs(signal_fft[freq_mask])))
-    # else :
-    #     self.graph2.plot(self.signalTime, modified_signal, pen='r')
-    
-    # self.graph2.setYRange(min(self.signalData), max(self.signalData))
+    self.modifiedData = np.real(np.fft.ifft(signal_fft))
 
-    # Update the second spectrogram plot
-    self.secondGraphAxis.clear()
-    frequencies2, times2, power_spectrogram = signal.spectrogram(modified_signal, fs=self.samplingRate)
+    # Downsample for visualization if signal is too long
+    if len(self.modifiedData) > 10000:
+        downsample_factor = len(self.modifiedData) // 10000
+        modified_signal_vis = self.modifiedData[::downsample_factor]
+        times_vis = self.signalTime[::downsample_factor]
+    else:
+        modified_signal_vis = self.modifiedData
+        times_vis = self.signalTime
 
-    # Log-scale for better visualization
-    log_power_spectrogram = np.log10(power_spectrogram)
+    # Update spectrogram less frequently
+    if not hasattr(self, '_spec_update_counter'):
+        self._spec_update_counter = 0
+    self._spec_update_counter += 1
 
-    # Plot the updated spectrogram
-    self.secondGraphAxis.pcolormesh(times2, frequencies2, log_power_spectrogram, shading='gouraud')
-    self.secondGraphAxis.set_ylabel('Frequency [Hz]')
-    self.secondGraphAxis.set_xlabel('Time [sec]')
-    self.secondGraphCanvas.draw()
+    if self._spec_update_counter % 3 == 0:  # Update every 3rd call
+        self.secondGraphAxis.clear()
+        frequencies2, times2, power_spectrogram = signal.spectrogram(
+            modified_signal_vis, 
+            fs=self.samplingRate,
+            nperseg=min(256, len(modified_signal_vis)//10)  # Smaller window for faster computation
+        )
+        self.secondGraphAxis.pcolormesh(times2, frequencies2, np.log10(power_spectrogram), shading='gouraud')
+        self.secondGraphCanvas.draw()
 
     signalPlotting(self)
 
@@ -143,6 +317,8 @@ def toggleFrequencyScale(self):
     if self.domain == "Frequency Domain":
         self.frequency_scale = "Audiogram" if self.frequency_scale == "Linear" else "Linear"
         updateEqualization(self)
+
+
 
 def resetSignal(self):
     self.signalTimer.stop()
@@ -351,3 +527,31 @@ def playFilteredAudio(self):
 
 def stopAudio(self):
     sd.stop()
+
+def export_signal(self):
+    """Export the modified signal"""
+    options = QFileDialog.Options()
+    file_path, _ = QFileDialog.getSaveFileName(self, 
+                                             "Save Signal",
+                                             "",
+                                             "WAV files (*.wav);;CSV files (*.csv)", 
+                                             options=options)
+    
+    if file_path:
+        if file_path.endswith('.wav'):
+            # Normalize the signal to [-1, 1] range
+            normalized_signal = self.modifiedData / np.max(np.abs(self.modifiedData))
+            
+            # Convert to 16-bit PCM
+            audio_data = (normalized_signal * 32767).astype(np.int16)
+            
+            # Export as WAV
+            wavfile.write(file_path, int(self.samplingRate), audio_data)
+            
+        elif file_path.endswith('.csv'):
+            # Export as CSV
+            df = pd.DataFrame({
+                'Time': self.signalTime,
+                'Amplitude': self.modifiedData
+            })
+            df.to_csv(file_path, index=False)
