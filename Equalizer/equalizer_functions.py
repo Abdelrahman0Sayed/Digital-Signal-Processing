@@ -244,6 +244,17 @@ def createSlider(self, label_text):
     return container
 
 def updateEqualization(self):
+    # Track if audio is currently playing
+    audio_was_playing = False
+    try:
+        audio_was_playing = sd.get_stream().active
+    except:
+        pass
+    
+    # Stop current playback if any
+    if audio_was_playing:
+        sd.stop()
+
     # Throttle updates
     if hasattr(self, '_last_update') and time.time() - self._last_update < 0.1:
         return
@@ -284,6 +295,19 @@ def updateEqualization(self):
     # Convert back to time domain
     self.modifiedData = np.real(np.fft.ifft(signal_fft))
 
+    # Restart audio if it was playing
+    if audio_was_playing:
+        try:
+            # Normalize to prevent clipping
+            filtered_signal = self.modifiedData / np.max(np.abs(self.modifiedData))
+            # Convert to same dtype as original signal
+            filtered_signal = filtered_signal.astype(self.signalData.dtype)
+            # Play the filtered signal
+            sd.play(filtered_signal, self.samplingRate)
+        except Exception as e:
+            print(f"Error restarting audio: {e}")
+
+    # Update visualizations
     # Downsample for visualization if signal is too long
     if len(self.modifiedData) > 10000:
         downsample_factor = len(self.modifiedData) // 10000
@@ -333,26 +357,50 @@ def toggleVisibility(self):
         self.firstGraphCanvas.show()
         self.secondGraphCanvas.show()
 
-
 def signalPlotting(self):
+    from scipy import signal
+
+    # Determine shortest length
+    min_length = min(len(self.signalData), len(self.modifiedData))
+    
+    # Resample both arrays to shortest length
+    if len(self.signalData) != min_length:
+        self.signalData = signal.resample(self.signalData, min_length)
+    if len(self.modifiedData) != min_length:
+        self.modifiedData = signal.resample(self.modifiedData, min_length)
+    
+    # Create new time array matching the resampled data
+    self.signalTime = np.linspace(0, min_length/self.samplingRate, min_length)
+    
     self.start_time = 0.0
     self.end_time = 1.0
     self.drawn = False
 
+    # Clear existing plots
     self.graph1.clear()
     self.graph2.clear()
 
-    self.graph1.plot(self.signalTime, self.signalData, pen='b', name='Original Data')
-    self.graph2.plot(self.signalTime, self.modifiedData, pen='r', name='Original Data')
+    try:
+        # Plot resampled data
+        self.graph1.plot(self.signalTime, self.signalData, pen='b', name='Original Data')
+        self.graph2.plot(self.signalTime, self.modifiedData, pen='r', name='Modified Data')
 
-    self.graph1.setLimits(xMin=0, xMax=self.signalTime[-1] ,yMin=min(self.signalData) - 0.2 , yMax=max(self.signalData) + 0.2)
-    self.graph2.setLimits(xMin=0, xMax=self.signalTime[-1] ,yMin=min(self.signalData) - 0.2 , yMax=max(self.signalData) + 0.2)
-    
-    self.signalTimer.stop()
-    self.signalTimeIndex = 0
+        # Set plot limits
+        y_min = min(min(self.signalData), min(self.modifiedData)) - 0.2
+        y_max = max(max(self.signalData), max(self.modifiedData)) + 0.2
+        
+        self.graph1.setLimits(xMin=0, xMax=self.signalTime[-1], yMin=y_min, yMax=y_max)
+        self.graph2.setLimits(xMin=0, xMax=self.signalTime[-1], yMin=y_min, yMax=y_max)
 
-    self.signalTimer.timeout.connect(lambda: updateSignalPlotting(self))
-    self.signalTimer.start(80)
+        # Reset and start timer
+        self.signalTimer.stop()
+        self.signalTimeIndex = 0
+        self.signalTimer.timeout.connect(lambda: updateSignalPlotting(self))
+        self.signalTimer.start(80)
+
+    except Exception as e:
+        print(f"Error during plotting: {str(e)}")
+        return
 
 
 
