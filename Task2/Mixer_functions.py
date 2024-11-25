@@ -336,8 +336,6 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
     
     if self.signals:
         # Plot all signals in white
-
-        
         
         combined_signal = np.sum(self.signals, axis=0)
         if update_on_sampling:
@@ -348,6 +346,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
 
         if update_on_sampling:
             self.signalData = combined_signal
+            self.copyData = combined_signal
             
 
         
@@ -356,6 +355,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             selected_signal = self.signals[self.selected_signal_index]
             if update_on_sampling:
                 self.signalViewer.plot(self.t_orig,selected_signal, pen='r')
+
             else:
 
                 self.signalViewer.plot(selected_signal, pen='r')
@@ -375,8 +375,10 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             self.signalViewer.plot(self.preview_total, pen='m')
     
     if not_real_time:
+        
         if update_on_sampling and self.signalData is not None:
             # Generate time array
+            self.frequencyDomainGraph.setXRange(-6, 6 )
             self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
             
             # Generate and store noisy signal
@@ -402,7 +404,8 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
         self.signalViewer.plot(self.t_sampled, self.sampled_signal, 
                             pen=None, symbol='o', symbolPen='b', 
                             symbolBrush='b', symbolSize=6, 
-                            name='Sampled Points')
+                            name='Sampled Points')   
+
 
 def on_parameter_changed(self):
     # Get current parameter values
@@ -444,6 +447,8 @@ def start_sampling(self):
         self.close()
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Sampling failed: {str(e)}")
+
+
 
 def save_signals_to_json(signals, signal_properties):
     # Save signals and properties to JSON

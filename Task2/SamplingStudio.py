@@ -31,6 +31,8 @@ class Ui_MainWindow(QMainWindow):
         self.signals, self.signal_properties = load_signals_from_json()
         # add the signals to the list widget
         self.signalData = None
+        self.copyData = None
+        self.f_max = 0
         self.selected_signal_index = -1
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: update_plot(self, True, False))
@@ -479,7 +481,7 @@ class Ui_MainWindow(QMainWindow):
             print("Signal Loaded")
             t_new = data['time'].values  
             signal_new = data['voltage'].values
-            
+            self.copyData = signal_new
             # Perform FFT analysis
             sampling_rate = 1 / (t_new[1] - t_new[0])
             n_samples = len(signal_new)
@@ -640,14 +642,19 @@ class Ui_MainWindow(QMainWindow):
 
         # Plot signals
         self.samplingGraph.plot(original_time, reconstructed_signal, pen='r', name='Reconstructed Signal')
-        
+        self.samplingGraph.setXRange(0, 0.5)
+        self.signalViewer.setXRange(0, 0.5)
+
         # Plot sample points with noise
         scatter = pg.ScatterPlotItem(t_sampled, sampled_signal, size=4, pen=pg.mkPen(None), 
                                     brush=pg.mkBrush(255, 255, 255, 120))
         self.samplingGraph.addItem(scatter)
 
         # Calculate and plot difference
-        difference_signal = original_signal - reconstructed_signal
+        if self.copyData is None:
+            self.copyData = original_signal
+
+        difference_signal = self.copyData - reconstructed_signal
         self.differenceGraph.plot(original_time, difference_signal, pen='y', name='Difference Signal')
 
         # Set plot limits
@@ -699,7 +706,7 @@ class Ui_MainWindow(QMainWindow):
         if significant_peaks.size > 0:
             min_freq = positive_peaks[0]
             max_freq = positive_peaks[-1]
-            self.f_max = max_freq
+            f_max = self.f_max = max_freq
             max_amplitude = properties['peak_heights'].max()
 
             print(f"Min Frequency: {min_freq} Hz")
@@ -714,6 +721,7 @@ class Ui_MainWindow(QMainWindow):
             if self.frequencyShape == "Pulses":
                 self.frequencyDomainGraph.clear()
                 self.frequencyDomainGraph.plot(freqs, magnitudes, pen='r', name='Original Frequency Domain')
+                self.frequencyDomainGraph.setXRange(-6, 6 )
                 self.repeatFrequencyPulses(freqs, magnitudes, f_sampling)
             else:
                 aliasing = f_sampling < 2 * max_freq
@@ -726,7 +734,6 @@ class Ui_MainWindow(QMainWindow):
 
         # Set the x-axis range symmetrically around the origin
         freq_range = max(abs(min(freqs)), abs(max(freqs)))
-        self.frequencyDomainGraph.setXRange(-freq_range, freq_range)      
         self.frequencyDomainGraph.setYRange(0, max(magnitudes))
                                 
         return min_freq, max_freq, max_amplitude
@@ -747,8 +754,8 @@ class Ui_MainWindow(QMainWindow):
             self.frequencyDomainGraph.plot(shifted_freqs_neg[negative_indices], magnitudes[negative_indices], 
                                         pen='b', name=f'Repeat {i} (Negative)')
 
-        max_x_range = repeats * f_sampling 
-        self.frequencyDomainGraph.setXRange(-max_x_range, max_x_range)
+        #max_x_range = repeats * f_sampling 
+        self.frequencyDomainGraph.setXRange(-10 * self.f_max , 10 * self.f_max)
 
 
 
@@ -784,7 +791,7 @@ class Ui_MainWindow(QMainWindow):
                 rect.setBrush(pg.mkBrush(0, 0, 255, 10)) 
                 self.frequencyDomainGraph.addItem(rect)
 
-        self.frequencyDomainGraph.setXRange(-max_freq / 2, max_freq / 2)
+        self.frequencyDomainGraph.setXRange(-3 * self.f_max , 3 * self.f_max)
         self.frequencyDomainGraph.setYRange(0, max_amplitude)
 
 
