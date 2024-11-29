@@ -18,7 +18,7 @@ import pandas as pd
 import sounddevice as sd
 from scipy import signal
 import time
-
+from audiogram import Audiogram
 
 COLORS = {
     'background': '#1E1E2E',  # Dark background
@@ -334,6 +334,11 @@ def updateEqualization(self):
 
     signalPlotting(self)
 
+    self.audiogramWidget.updateData(self.signalTime, self.signalData, self.modifiedData)
+    
+    
+
+
 
 
 
@@ -350,13 +355,13 @@ def resetSignal(self):
     signalPlotting(self)
 
 def toggleVisibility(self):
-    if self.secondGraphCanvas.isVisible() and self.firstGraphCanvas.isVisible():
-        self.secondGraphCanvas.hide()
-        self.firstGraphCanvas.hide()
+    """Toggle visibility of spectrograms only"""
+    if self.spectogramCheck.isChecked():
+        self.spectrogramContainer.hide()
+        self.spectogramCheck.setText("Show Spectrograms")
     else:
-        self.firstGraphCanvas.show()
-        self.secondGraphCanvas.show()
-
+        self.spectrogramContainer.show()
+        self.spectogramCheck.setText("Hide Spectrograms")
 def signalPlotting(self):
     from scipy import signal
 
@@ -504,6 +509,8 @@ def plotSpectrogram(self):
     self.firstGraphAxis.set_ylabel('Frequency [Hz]')
     self.firstGraphAxis.set_xlabel('Time [sec]')
     self.firstGraphCanvas.draw()  # Redraw the canvas
+
+    
 
 
 def playOriginalAudio(self):
