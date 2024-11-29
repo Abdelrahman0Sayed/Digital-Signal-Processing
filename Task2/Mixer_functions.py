@@ -23,8 +23,8 @@ class Command:
     indices: List[int]
     signal_names: List[str]  # Add this field
 
-def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=1, sample_rate=7000):
-    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=4, sample_rate=7000):
+    t = np.linspace(0, duration, int(30000), endpoint=False)
     phase_shift_rad = np.deg2rad(phase_shift)
     if signal_type == "Sin":
         return amplitude * np.sin(2 * np.pi * frequency * t + phase_shift_rad)
@@ -325,7 +325,7 @@ def update_signal_real_time(self, input_box):
 def update_plot(self, update_on_sampling=False, not_real_time=True):
     self.signalViewer.clear()
     if update_on_sampling:
-        self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
+        self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
 
         if len(self.signals) == 0:
             self.samplingGraph.clear()
@@ -379,7 +379,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
         if update_on_sampling and self.signalData is not None:
             # Generate time array
             self.frequencyDomainGraph.setXRange(-6, 6 )
-            self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
+            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()

@@ -9,7 +9,7 @@ A1 = 0.5  # Amplitude of the first sine wave
 A2 = 1  # Amplitude of the second sine wave
 A3 = 0.2  # Amplitude of the third sine wave
 T = 1  # Total duration of the signal (seconds)
-num_samples = 7000  # Number of samples to generate
+num_samples = 30000  # Number of samples to generate
 
 # Create the time array
 t_orig = np.linspace(0, T, num_samples, endpoint=False)

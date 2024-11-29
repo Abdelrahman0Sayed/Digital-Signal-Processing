@@ -443,22 +443,18 @@ class Ui_MainWindow(QMainWindow):
             if isinstance(self.samplingFrequency, (int, float)):
                 label.setText(f"{self.samplingFactor:.2f}")
                 self.sampling_frequency.setValue(int(self.samplingFrequency))
-                self.samplingFrequencyLabel.setText(f"{self.samplingFrequency:.2f}")
-
+                self.samplingFrequencyLabel.setText(f"{float(self.samplingFrequency):.2f}")
             else:
-                print(f"Invalid sampling frequency type: {type(self.samplingFrequency)}")
+                print(f"Invalid sampling frequency type: {type(self.samplingFrequency)}") 
         else:
             print("f_max not set or is None")
         
-        # Update plots if we have the required data
+        # Update plots if we have the required attributes
         if hasattr(self, 't_orig') and hasattr(self, 'signalData'):
-            self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
-            
-            # Generate and store noisy signal
+            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
             snr_db = self.snr_slider.value()
             self.noisy_signal = self.add_noise(self.signalData, snr_db, self.samplingType.currentText())
             self.startSampling(self.t_orig, self.noisy_signal)
-
 
 
 
@@ -508,7 +504,7 @@ class Ui_MainWindow(QMainWindow):
                 yMax=max(self.signalData) + 0.5
             )
             
-            self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
+            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()
@@ -602,13 +598,13 @@ class Ui_MainWindow(QMainWindow):
         if sampling_frequency is not None:
             f_s = sampling_frequency
         else:
-            f_s = (self.samplingFactor + 0.1) * f_max
+            f_s = (self.samplingFactor + 0.05) * f_max
         
         self.samplingFrequency = f"{f_s:.2f}"
         T = original_time[-1]
 
-        # Calculate number of samples
-        num_samples = max(4,int(f_s * T))
+        # Calculate number of samples 
+        num_samples = max(4,int(f_s * T))   
         
         # Get SNR value from slider
         snr_db = self.snr_slider.value()
