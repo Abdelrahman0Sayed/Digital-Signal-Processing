@@ -25,6 +25,7 @@ class Command:
 
 def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=4, sample_rate=7000):
     t = np.linspace(0, duration, int(30000), endpoint=False)
+
     phase_shift_rad = np.deg2rad(phase_shift)
     if signal_type == "Sin":
         return amplitude * np.sin(2 * np.pi * frequency * t + phase_shift_rad)
@@ -40,6 +41,7 @@ def add_signal(self, add_command_bool= False):
     frequency = float(self.lineEdit_2.text())
     phase_shift = float(self.lineEdit_4.text())
     signal_name = self.lineEdit_3.text().strip()
+    duration= 10
 
     if frequency > 50:
         QtWidgets.QMessageBox.warning(self, "Invalid Input", "Frequency cannot exceed 50.")
@@ -57,7 +59,7 @@ def add_signal(self, add_command_bool= False):
         del self.selected_example_signal
         del self.selected_example_name
     else : 
-        signal = generate_signal(self,signal_type, amplitude, frequency, phase_shift)
+        signal = generate_signal(self,signal_type, amplitude, frequency, phase_shift, duration)
     # Store signal info for command
     signal_props = {
         'type': signal_type,
@@ -327,6 +329,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
     if update_on_sampling:
         self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
 
+
         if len(self.signals) == 0:
             self.samplingGraph.clear()
             self.differenceGraph.clear()
@@ -335,6 +338,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             return
     
     if self.signals:
+
         combined_signal = np.sum(self.signals, axis=0)
 
         if update_on_sampling:
@@ -342,7 +346,6 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             self.copyData = combined_signal
         
         if update_on_sampling:
-            
             self.signalViewer.plot(self.t_orig,combined_signal, pen='w')
         else:
             self.signalViewer.plot(combined_signal, pen='w')
@@ -376,6 +379,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             # Generate time array
             self.frequencyDomainGraph.setXRange(-6, 6 )
             self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
+
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()

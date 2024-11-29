@@ -823,32 +823,27 @@ class Ui_MainWindow(QMainWindow):
         self.graph1.setObjectName("graph1")
         self.graph1.showGrid(x=True, y=True)
         self.graph1.setStyleSheet("border-radius: 6px;border: 2px solid white;")
+        self.graph1.setMinimumHeight(200)
 
         self.graph2 = pg.PlotWidget(self.mainBodyframe)
         self.graph2.setBackground("transparent") 
         self.graph2.showGrid(x=True, y=True)
         self.graph2.setObjectName("graph2")
         self.graph2.setStyleSheet("border-radius: 6px;border: 2px solid white;")
+        self.graph2.setMinimumHeight(200)
 
-        # Add graphs to horizontal layout
-        horizontalLayout = QtWidgets.QHBoxLayout()
-        horizontalLayout.addWidget(self.graph1)
-        horizontalLayout.addWidget(self.graph2)
 
-        # Add horizontal layout to vertical layout
-        self.verticalGraphs.addLayout(horizontalLayout)
+        self.graphSectionLayout = QtWidgets.QVBoxLayout()
+        
 
-        # Sync graph panning
-        self.graph2.getViewBox().sigRangeChanged.connect(
-            lambda viewbox, rect: self.sync_pan(viewbox, self.graph1.getViewBox())
-        )
-        self.graph1.getViewBox().sigRangeChanged.connect(
-            lambda viewbox, rect: self.sync_pan(viewbox, self.graph2.getViewBox())
-        )
-        # Control buttons layout
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
+        
+        self.graphsLayout = QtWidgets.QHBoxLayout()
+        self.graphsLayout.addWidget(self.graph1)
+        self.graphsLayout.addWidget(self.graph2)
+        
+        self.controlButtonsLayout = QtWidgets.QHBoxLayout()
+        self.controlButtonsLayout.setAlignment(QtCore.Qt.AlignCenter)  # Center alignment
 
-        # Play/Pause button
         self.playPause = QtWidgets.QPushButton(self.mainBodyframe)
         font = QtGui.QFont()
         font.setFamily("-apple-system")
@@ -857,65 +852,66 @@ class Ui_MainWindow(QMainWindow):
         self.playPause.setFont(font)
         self.playPause.setStyleSheet(STYLES['BUTTON'])
         self.playPause.setIcon(self.stopIcon)
-        self.playPause.setIconSize(QtCore.QSize(25, 25))
+        self.playPause.setIconSize(QtCore.QSize(15, 15))
         self.playPause.setObjectName("playPause")
         self.playPause.clicked.connect(lambda: togglePlaying(self))
-        self.horizontalLayout_4.addWidget(self.playPause)
 
-        # Reset button
         self.resetButton = QtWidgets.QPushButton(self.mainBodyframe)
         self.resetButton.setFont(font)
         self.resetButton.setStyleSheet(STYLES['BUTTON'])
         self.resetButton.setIcon(self.replayIcon)
-        self.resetButton.setIconSize(QtCore.QSize(25, 25))
+        self.resetButton.setIconSize(QtCore.QSize(15, 15))
         self.resetButton.clicked.connect(lambda: resetSignal(self))
-        self.horizontalLayout_4.addWidget(self.resetButton)
 
         # Zoom buttons
         self.zoomIn = QtWidgets.QPushButton(self.mainBodyframe)
         self.zoomIn.setStyleSheet(STYLES['BUTTON'])
         self.zoomIn.setIcon(self.zoomInIcon)
-        self.zoomIn.setIconSize(QtCore.QSize(25, 25))
+        self.zoomIn.setIconSize(QtCore.QSize(15, 15))
         self.zoomIn.clicked.connect(lambda: zoomingIn(self))
-        self.horizontalLayout_4.addWidget(self.zoomIn)
 
         self.zoomOut = QtWidgets.QPushButton(self.mainBodyframe)
         self.zoomOut.setStyleSheet(STYLES['BUTTON'])
         self.zoomOut.setIcon(self.zoomOutIcon)
-        self.zoomOut.setIconSize(QtCore.QSize(25, 25))
+        self.zoomOut.setIconSize(QtCore.QSize(15, 15))
         self.zoomOut.clicked.connect(lambda: zoomingOut(self))
-        self.horizontalLayout_4.addWidget(self.zoomOut)
 
-        # Speed controls layout
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_3.setSpacing(3)
 
         # Speed Up button
         self.speedUp = QtWidgets.QPushButton(self.mainBodyframe)
         self.speedUp.setStyleSheet(STYLES['BUTTON'])
         self.speedUp.setIcon(self.speedUpIcon)
-        self.speedUp.setIconSize(QtCore.QSize(25, 25))
+        self.speedUp.setIconSize(QtCore.QSize(15, 15))
         self.speedUp.clicked.connect(lambda: speedingUp(self))
-        self.horizontalLayout_3.addWidget(self.speedUp)
 
         # Speed Down button
         self.speedDown = QtWidgets.QPushButton(self.mainBodyframe)
         self.speedDown.setStyleSheet(STYLES['BUTTON'])
         self.speedDown.setIcon(self.speedDownIcon)
-        self.speedDown.setIconSize(QtCore.QSize(25, 25))
+        self.speedDown.setIconSize(QtCore.QSize(15, 15))
         self.speedDown.clicked.connect(lambda: speedingDown(self))
-        self.horizontalLayout_3.addWidget(self.speedDown)
 
-        # Add spacers
-        self.horizontalLayout_3.addItem(QtWidgets.QSpacerItem(200, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
-        # Add speed controls to main controls layout
-        self.horizontalLayout_4.addLayout(self.horizontalLayout_3)
+        
 
-        # Add controls to vertical layout
+        # Add buttons vertically
+        self.controlButtonsLayout.addWidget(self.playPause)
+        self.controlButtonsLayout.addWidget(self.resetButton)
+        self.controlButtonsLayout.addWidget(self.zoomIn)
+        self.controlButtonsLayout.addWidget(self.zoomOut)
+        self.controlButtonsLayout.addWidget(self.speedUp)
+        self.controlButtonsLayout.addWidget(self.speedDown)
+        
+        # Add stretch to push buttons to top
+        self.controlButtonsLayout.addStretch()
+        
+        # Add layouts to main horizontal layout
+        self.graphSectionLayout.addLayout(self.graphsLayout)
+        self.graphSectionLayout.addLayout(self.controlButtonsLayout)
+        
+        # Add graph section to main vertical layout
+        self.verticalGraphs.addLayout(self.graphSectionLayout)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_3.addLayout(self.horizontalLayout_4)
-        self.verticalGraphs.addLayout(self.verticalLayout_3)
 
         # Add separator line
         self.line_8 = QtWidgets.QFrame(self.mainBodyframe)
@@ -930,61 +926,49 @@ class Ui_MainWindow(QMainWindow):
         self.line_8.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.verticalGraphs.addWidget(self.line_8)
 
-        # Create Audiogram container first (always visible)
-        self.audiogramContainer = QtWidgets.QWidget(self.mainBodyframe)
-        self.audiogramContainer.setStyleSheet(STYLES['SPECTROGRAM'])
-        self.audiogramContainer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
-                                            QtWidgets.QSizePolicy.Expanding)
-        self.audiogramContainer.setMinimumSize(800, 200)
-        self.audiogramLayout = QVBoxLayout(self.audiogramContainer)
-        self.audiogramLayout.setContentsMargins(0, 0, 0, 0)
-        self.audiogramLayout.setSpacing(0)
 
-        self.verticalGraphs.addWidget(self.audiogramContainer)
 
         
-
-        # Add another line separator
-        self.line_9 = QtWidgets.QFrame(self.mainBodyframe)
-        self.line_9.setStyleSheet("""
-            width: 20px;
-            height: 5px;
-            background-color: #3a3b3c;
-            border: 10px;
-            border-radius: 5px;
-        """)
-        self.line_9.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line_9.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.verticalGraphs.addWidget(self.line_9)
-
         # Create Spectrogram Layout (can be toggled)
         self.spectrogramLayout = QtWidgets.QHBoxLayout()
         self.spectrogramLayout.setObjectName("spectrogramLayout")
         self.spectrogramLayout.setSpacing(20)
         self.spectrogramLayout.setContentsMargins(10, 10, 10, 10)
 
+
+
+
         # First Spectrogram
-        self.firstSpectrogramFig = Figure(figsize=(5, 4))
+        self.firstSpectrogramFig = Figure(figsize=(10, 10))
         self.firstGraphCanvas = FigureCanvas(self.firstSpectrogramFig)
+        self.firstGraphCanvas.setFixedHeight(200)  # Set canvas height
         self.firstGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
         self.spectrogramLayout.addWidget(self.firstGraphCanvas)
 
+
+
+
         # Second Spectrogram
-        self.secondSpectrogramFig = Figure(figsize=(5, 4))
+        self.secondSpectrogramFig = Figure(figsize=(10, 10))
         self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
+        self.secondGraphCanvas.setFixedHeight(200)
         self.secondGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
         self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
         self.spectrogramLayout.addWidget(self.secondGraphCanvas)
 
+
+
+
         # Create container for spectrograms
         self.spectrogramContainer = QtWidgets.QWidget(self.mainBodyframe)
+        self.spectrogramContainer.setFixedHeight(250)  # Set container height
         self.spectrogramContainer.setStyleSheet(STYLES['SPECTROGRAM'])
         self.spectrogramContainer.setLayout(self.spectrogramLayout)
         self.verticalGraphs.addWidget(self.spectrogramContainer)
 
         # Update stretch factors
-        self.verticalGraphs.setStretch(0, 3)  # Time domain graphs
+        self.verticalGraphs.setStretch(0, 1)  # Time domain graphs
         self.verticalGraphs.setStretch(1, 1)  # First separator
         self.verticalGraphs.setStretch(2, 1)  # Audiogram
         self.verticalGraphs.setStretch(3, 1)  # Second separator
@@ -1007,6 +991,40 @@ class Ui_MainWindow(QMainWindow):
         self.secondGraphAxis.yaxis.label.set_color(COLORS['text'])
         for spine in self.secondGraphAxis.spines.values():
             spine.set_color(COLORS['accent'])
+
+
+
+
+        # Add another line separator
+        self.line_9 = QtWidgets.QFrame(self.mainBodyframe)
+        self.line_9.setStyleSheet("""
+            width: 20px;
+            height: 5px;
+            background-color: #3a3b3c;
+            border: 10px;
+            border-radius: 5px;
+        """)
+        self.line_9.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_9.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.verticalGraphs.addWidget(self.line_9)
+
+
+
+
+        # Create Audiogram container first (always visible)
+        self.audiogramContainer = QtWidgets.QWidget(self.mainBodyframe)
+        self.audiogramContainer.setStyleSheet("color:transparent")
+        self.audiogramContainer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+                                            QtWidgets.QSizePolicy.Expanding)
+        self.audiogramContainer.setMinimumSize(800, 300)
+        self.audiogramLayout = QVBoxLayout(self.audiogramContainer)
+        self.audiogramLayout.setContentsMargins(0, 0, 0, 0)
+        self.audiogramLayout.setSpacing(0)
+
+        self.verticalGraphs.addWidget(self.audiogramContainer)
+
+
+
 
         # Add sliders section
         self.slidersWidget = QtWidgets.QWidget(self.mainBodyframe)
@@ -1120,10 +1138,6 @@ class Ui_MainWindow(QMainWindow):
         self.filteredSignal.setText(_translate("MainWindow", "Filtered Signal"))
         self.playFilteredSignal.setText(_translate("MainWindow", "Play Audio"))
         self.exportButton.setText(_translate("MainWindow", "Export Signal"))
-        self.playPause.setText(_translate("MainWindow", "Play/Pause"))
-        self.resetButton.setText(_translate("MainWindow", "Reset"))
-        self.speedUp.setText(_translate("MainWindow", "Speed Up"))
-        self.speedDown.setText(_translate("MainWindow", "Speed Down"))
     
     
     
