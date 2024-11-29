@@ -13,64 +13,109 @@ import pandas as pd
 import sounddevice as sd
 from PyQt5 import QtCore, QtGui, QtWidgets
 from scipy.signal import find_peaks
+import pyqtgraph as pg
 
 
 class Audiogram(QWidget):
-    def __init__(self, signalsTime, originalSignal, filteredSignal):
+    def __init__(self, signalsTime, originalSignal, filteredSignal, parent=None):
         super().__init__()
         self.signalsTime = signalsTime
         self.originalSignal = originalSignal
         self.filteredSignal = filteredSignal
         self.setupUi()
+        # Set size policy to expand
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+                        QtWidgets.QSizePolicy.Expanding)
+
+        # Configure plots to expand
+        self.origianlSignalGraph.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+                                            QtWidgets.QSizePolicy.Expanding)
+        self.filteredSignalGraph.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+                                            QtWidgets.QSizePolicy.Expanding)
+        
+        # Set size based on whether embedded or standalone
+        if parent:
+            self.resize(parent.width(), parent.height())
+        else:
+            self.resize(800, 400)
+        
         self.plotSignificantFrequencies()
         self.frequencyShape = "Frequency Domain"
 
     def setupUi(self):
-
         self.resize(1464, 798)
         self.setStyleSheet("background-color: #1b1d23;")
         
         self.gridLayout = QtWidgets.QGridLayout(self)
         self.gridLayout.setObjectName("gridLayout")
-        self.verticalLayout = QtWidgets.QVBoxLayout()
-        self.verticalLayout.setObjectName("verticalLayout")
         
+        # Create horizontal layout with proper margins
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.horizontalLayout.setSpacing(20)
+        self.horizontalLayout.setContentsMargins(5, 5, 5, 20)  # Added bottom margin
         
+        # First graph (Original Signal)
         self.widget = QtWidgets.QWidget(self)
         self.widget.setObjectName("widget")
         self.origianlSignalGraph = PlotWidget(self.widget)
         self.origianlSignalGraph.setBackground('transparent')
         self.origianlSignalGraph.showGrid(x=True, y=True)
-        self.verticalLayout.addWidget(self.origianlSignalGraph)
-
         
+        # Configure axis
+        self.origianlSignalGraph.getPlotItem().getAxis('bottom').setHeight(40)  # More height for x-axis
+        self.origianlSignalGraph.getPlotItem().layout.setContentsMargins(10, 10, 10, 25)  # Bottom margin
+        self.origianlSignalGraph.setStyleSheet("""
+            border: 2px solid #7AA2F7;
+            border-radius: 10px;
+            padding-bottom: 20px;
+        """)
+        self.horizontalLayout.addWidget(self.origianlSignalGraph)
         
+        # Second graph (Filtered Signal) - same configuration
         self.widget_2 = QtWidgets.QWidget(self)
         self.widget_2.setObjectName("widget_2")
         self.filteredSignalGraph = PlotWidget(self.widget)
         self.filteredSignalGraph.setBackground('transparent')
         self.filteredSignalGraph.showGrid(x=True, y=True)
-        self.verticalLayout.addWidget(self.filteredSignalGraph)
-
-
-        self.toggleShapeButton = QtWidgets.QPushButton(self)
-        self.toggleShapeButton.setObjectName("pushButton")
-        self.toggleShapeButton.setStyleSheet("""
-            QPushButton
-            {
-                background-color: #4a5178;
-                border: 2px solid white;
-                color: white;
-                font-size: 20px;
-                font-weight: bold;
-                padding: 10px;
-            }
-        """)
-        self.toggleShapeButton.clicked.connect(lambda: self.toggleShape())
         
-        self.verticalLayout.addWidget(self.toggleShapeButton)
+        # Configure axis
+        self.filteredSignalGraph.getPlotItem().getAxis('bottom').setHeight(40)
+        self.filteredSignalGraph.getPlotItem().layout.setContentsMargins(10, 10, 10, 25)
+        self.filteredSignalGraph.setStyleSheet("""
+            border: 2px solid #7AA2F7;
+            border-radius: 10px;
+            padding-bottom: 20px;
+        """)
+        self.horizontalLayout.addWidget(self.filteredSignalGraph)
+        
+        # Create vertical layout for the entire window
+        self.verticalLayout = QtWidgets.QVBoxLayout()
+        self.verticalLayout.setObjectName("verticalLayout")
+        
+        # Add the horizontal layout containing graphs to vertical layout
+        self.verticalLayout.addLayout(self.horizontalLayout)
+        
+        # Add toggle button
+        # self.toggleShapeButton = QtWidgets.QPushButton(self)
+        # self.toggleShapeButton.setObjectName("pushButton")
+        # self.toggleShapeButton.setStyleSheet("""
+        #     QPushButton
+        #     {
+        #         background-color: #4a5178;
+        #         border: 2px solid white;
+        #         color: white;
+        #         font-size: 20px;
+        #         font-weight: bold;
+        #         padding: 10px;
+        #     }
+        # """)
+        # self.toggleShapeButton.clicked.connect(lambda: self.toggleShape())
+        # self.verticalLayout.addWidget(self.toggleShapeButton)
+        
+        # Add vertical layout to grid
         self.gridLayout.addLayout(self.verticalLayout, 0, 0, 1, 1)
-
+        
         self.retranslateUi()
         QtCore.QMetaObject.connectSlotsByName(self)
 
@@ -78,7 +123,7 @@ class Audiogram(QWidget):
     def retranslateUi(self):
         _translate = QtCore.QCoreApplication.translate
         self.setWindowTitle(_translate("Form", "Form"))
-        self.toggleShapeButton.setText(_translate("Form", "Toggle Shape"))
+        #self.toggleShapeButton.setText(_translate("Form", "Toggle Shape"))
 
     
     
@@ -132,62 +177,57 @@ class Audiogram(QWidget):
         # Get frequency bins
         freqs = np.fft.fftfreq(len(self.originalSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
         
-        # Standard audiogram frequencies
-        audiogram_freqs = np.array([125, 250, 500, 1000, 2000, 4000, 8000])
-        
-        # Convert to magnitude in dB with proper reference level
-        # Using standard reference level for dB calculation
-        ref_level = 1.0  # Reference level for dB calculation
-        original_magnitudes = 20 * np.log10(np.abs(fft_original) / len(self.originalSignal) / ref_level)
-        filtered_magnitudes = 20 * np.log10(np.abs(fft_filtered) / len(self.filteredSignal) / ref_level)
-        
-        # Keep only positive frequencies and handle zero/negative values in log scale
-        positive_mask = freqs > 0
+        # Keep only positive frequencies within human hearing range
+        positive_mask = (freqs > 20) & (freqs < 20000)  # 20Hz to 20kHz
         freqs = freqs[positive_mask]
-        original_magnitudes = original_magnitudes[positive_mask]
-        filtered_magnitudes = filtered_magnitudes[positive_mask]
+        original_magnitudes = 20 * np.log10(np.abs(fft_original[positive_mask]) / len(self.originalSignal))
+        filtered_magnitudes = 20 * np.log10(np.abs(fft_filtered[positive_mask]) / len(self.filteredSignal))
         
-        # Set minimum dB level
-        min_db = -60
-        original_magnitudes = np.maximum(original_magnitudes, min_db)
-        filtered_magnitudes = np.maximum(filtered_magnitudes, min_db)
+        # Increase downsample factor
+        downsample_factor = 50  # Changed from 10 to 50
+        freqs = freqs[::downsample_factor]
+        original_magnitudes = original_magnitudes[::downsample_factor]
+        filtered_magnitudes = filtered_magnitudes[::downsample_factor]
         
-        # Interpolate magnitudes at audiogram frequencies
-        original_interp = np.interp(audiogram_freqs, freqs, original_magnitudes)
-        filtered_interp = np.interp(audiogram_freqs, freqs, filtered_magnitudes)
+        # Configure graphs with reduced point density
+        for graph in [self.origianlSignalGraph, self.filteredSignalGraph]:
+            graph.clear()
+            graph.setLogMode(x=True, y=False)
+            graph.showGrid(x=True, y=True, alpha=0.3)
+            graph.setLabel('left', 'Magnitude (dB)', size='12pt')
+            graph.setLabel('bottom', 'Frequency (Hz)', size='12pt')
+            graph.addLegend(offset=(-30, 30))
         
-        # Clear and setup plots
-        self.origianlSignalGraph.clear()
-        self.filteredSignalGraph.clear()
-        
-        # Set logarithmic x-axis and proper ranges
-        self.origianlSignalGraph.setLogMode(x=True, y=False)
-        self.filteredSignalGraph.setLogMode(x=True, y=False)
-        
-        # Set proper axis ranges
-        self.origianlSignalGraph.setXRange(np.log10(100), np.log10(10000))
-        self.origianlSignalGraph.setYRange(min_db, 20)
-        self.filteredSignalGraph.setXRange(np.log10(100), np.log10(10000))
-        self.filteredSignalGraph.setYRange(min_db, 20)
-        
-        # Custom tick formatter for log scale
-        tick_values = [(freq, str(freq)) for freq in audiogram_freqs]
-        self.origianlSignalGraph.getAxis('bottom').setTicks([tick_values])
-        self.filteredSignalGraph.getAxis('bottom').setTicks([tick_values])
-        
-        # Plot with markers
-        self.origianlSignalGraph.plot(audiogram_freqs, original_interp, pen='b', symbol='o', symbolSize=10)
-        self.filteredSignalGraph.plot(audiogram_freqs, filtered_interp, pen='r', symbol='o', symbolSize=10)
-        
-        # Set labels
-        self.origianlSignalGraph.setLabel('left', 'Amplitude (dB)')
-        self.origianlSignalGraph.setLabel('bottom', 'Frequency (Hz)')
-        self.filteredSignalGraph.setLabel('left', 'Amplitude (dB)')
-        self.filteredSignalGraph.setLabel('bottom', 'Frequency (Hz)')
-        
-        # Add grid
-        self.origianlSignalGraph.showGrid(x=True, y=True)
-        self.filteredSignalGraph.showGrid(x=True, y=True)
+        # Plot with symbols every N points
+        symbol_every = 5  # Show symbols every 5 points
+        self.origianlSignalGraph.plot(freqs, original_magnitudes,
+                                    pen=dict(color='b', width=2),
+                                    name='Original Signal',
+                                    symbol='o',  # Circle symbol
+                                    symbolSize=5,  # Smaller symbols
+                                    symbolBrush='b',
+                                    symbolPen='b',
+                                    skipSymbols=symbol_every)  # Skip symbols
+                                    
+        self.filteredSignalGraph.plot(freqs, filtered_magnitudes,
+                                    pen=dict(color='r', width=2),
+                                    name='Filtered Signal',
+                                    symbol='o',
+                                    symbolSize=5,
+                                    symbolBrush='r',
+                                    symbolPen='r',
+                                    skipSymbols=symbol_every)
+    
+    def updateData(self, time_data, signal_data, modified_data):
+        self.signalsTime = time_data
+        self.originalSignal = signal_data
+        self.filteredSignal = modified_data
+        if self.frequencyShape != "Frequency Domain":
+            self.plotAudiogram()
+        else:
+            self.plotSignificantFrequencies()
+        self.show()
+    
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)  
