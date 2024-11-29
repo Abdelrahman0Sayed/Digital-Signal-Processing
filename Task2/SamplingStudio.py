@@ -398,7 +398,7 @@ class Ui_MainWindow(QMainWindow):
 
 
 
-    def add_noise(self, signal, snr_db, samplingType):
+    def add_noise(self, signal, snr_db):
         signal_power = np.mean(signal ** 2)
         snr_linear = 10 ** (snr_db / 10)
         noise_power = signal_power / snr_linear
@@ -453,7 +453,7 @@ class Ui_MainWindow(QMainWindow):
         if hasattr(self, 't_orig') and hasattr(self, 'signalData'):
             self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
             snr_db = self.snr_slider.value()
-            self.noisy_signal = self.add_noise(self.signalData, snr_db, self.samplingType.currentText())
+            self.noisy_signal = self.add_noise(self.signalData, snr_db)
             self.startSampling(self.t_orig, self.noisy_signal)
 
 
@@ -466,9 +466,12 @@ class Ui_MainWindow(QMainWindow):
 
 
 
-    
     def loadSignalFromFile(self, filePath):
         try:
+            self.signals = []
+            self.signal_properties
+            self.signalViewer.clear()
+            self.signalData = 0
             print(f"Data Loaded : {filePath}")
             data = pd.read_csv(filePath)
             if filePath not in self.loadedSignals:
@@ -478,6 +481,7 @@ class Ui_MainWindow(QMainWindow):
             t_new = data['time'].values  
             signal_new = data['voltage'].values
             self.copyData = signal_new
+
             # Perform FFT analysis
             sampling_rate = 1 / (t_new[1] - t_new[0])
             n_samples = len(signal_new)
@@ -488,6 +492,11 @@ class Ui_MainWindow(QMainWindow):
             # Find significant components (threshold can be adjusted)
             threshold = 0.1 * np.max(magnitudes)
             significant_idx = np.where(magnitudes > threshold)[0]
+            
+            # Debug prints for FFT results
+            print(f"FFT Frequencies: {frequencies}")
+            print(f"FFT Magnitudes: {magnitudes}")
+            print(f"Significant Indices: {significant_idx}")
             
             # Store original combined signal
             if not hasattr(self, 't_orig'):
@@ -508,10 +517,9 @@ class Ui_MainWindow(QMainWindow):
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()
-            self.noisy_signal = self.add_noise(self.signalData, snr_db, self.samplingType.currentText())
+            self.noisy_signal = self.add_noise(self.signalData, snr_db)
             
-            # Perform sampling on noisy signal
-            self.startSampling(self.t_orig, self.noisy_signal)
+
 
             # Load existing signals
             signals_co, props_co = load_signals_from_json()
@@ -519,15 +527,20 @@ class Ui_MainWindow(QMainWindow):
                 self.signals.append(signal)
                 self.signal_properties.append(props_co[i])
             
-            # Add components to signals list
+            #Add components to signals list
             for idx in significant_idx:
                 if frequencies[idx] >= 0:  # Only positive frequencies
                     amplitude = 2 * magnitudes[idx] / n_samples
                     freq = abs(frequencies[idx])
                     phase = np.angle(fft_result[idx])
                     
+                    # Debug prints for each component
+                    print(f"Component Frequency: {freq}")
+                    print(f"Component Amplitude: {amplitude}")
+                    print(f"Component Phase: {phase}")
+                    
                     # Create component signal
-                    component = amplitude * np.sin(2 * np.pi * freq * t_new + phase)
+                    component = amplitude * np.sin(2 * np.pi * freq * self.t_orig + phase)
                     self.signals.append(component)
                     
                     # Add component properties
@@ -539,13 +552,18 @@ class Ui_MainWindow(QMainWindow):
                         'type': 'sine'
                     })
             
-            # Update UI list
-            self.listWidget.clear()
-            for signal in self.signal_properties:
-                self.listWidget.addItem(signal['name'])
+
+            # self.listWidget.clear()
+            # for signal in self.signal_properties:
+            #     self.listWidget.addItem(signal['name'])
+            print(self.signalData)
+            self.signalViewer.plot(self.t_orig, self.signalData, pen='w', name='Original Signal')
+            self.startSampling(self.t_orig, self.signalData)
+
+
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error loading signal from file: {e}")
 
 
 
@@ -702,7 +720,7 @@ class Ui_MainWindow(QMainWindow):
         if significant_peaks.size > 0:
             min_freq = positive_peaks[0]
             max_freq = positive_peaks[-1]
-            f_max = self.f_max = max_freq
+            self.f_max = max_freq
             max_amplitude = properties['peak_heights'].max()
 
             print(f"Min Frequency: {min_freq} Hz")

@@ -335,19 +335,17 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             return
     
     if self.signals:
-        # Plot all signals in white
-        
         combined_signal = np.sum(self.signals, axis=0)
+
+        if update_on_sampling:
+            self.signalData = combined_signal
+            self.copyData = combined_signal
+        
         if update_on_sampling:
             
             self.signalViewer.plot(self.t_orig,combined_signal, pen='w')
         else:
             self.signalViewer.plot(combined_signal, pen='w')
-
-        if update_on_sampling:
-            self.signalData = combined_signal
-            self.copyData = combined_signal
-            
 
         
         # Plot selected signal in red
@@ -355,9 +353,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             selected_signal = self.signals[self.selected_signal_index]
             if update_on_sampling:
                 self.signalViewer.plot(self.t_orig,selected_signal, pen='r')
-
             else:
-
                 self.signalViewer.plot(selected_signal, pen='r')
 
     # Draw preview signal in green if previewing
@@ -383,7 +379,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()
-            self.noisy_signal = self.add_noise(self.signalData, snr_db, self.samplingType.currentText())
+            self.noisy_signal = self.add_noise(self.signalData, snr_db)
             
             # Perform sampling on noisy signal
             self.startSampling(self.t_orig, self.noisy_signal)
