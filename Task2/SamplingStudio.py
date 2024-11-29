@@ -468,8 +468,9 @@ class Ui_MainWindow(QMainWindow):
 
     def loadSignalFromFile(self, filePath):
         try:
+            # Clear existing signals and properties
             self.signals = []
-            self.signal_properties
+            self.signal_properties = []
             self.signalViewer.clear()
             self.signalData = 0
             print(f"Data Loaded : {filePath}")
@@ -499,18 +500,15 @@ class Ui_MainWindow(QMainWindow):
             print(f"Significant Indices: {significant_idx}")
             
             # Store original combined signal
-            if not hasattr(self, 't_orig'):
-                self.t_orig = t_new
-                self.signalData = signal_new
-            else:
-                self.signalData = self.signalData + signal_new
+            self.t_orig = t_new
+            self.signalData = signal_new
 
             # Update plot limits
             self.signalViewer.setLimits(
                 xMin=0, 
                 xMax=len(self.signalData), 
                 yMin=min(self.signalData) - 0.5, 
-                yMax=max(self.signalData) + 0.5
+                yMax=(max(self.signalData)) + 0.5
             )
             
             self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
@@ -519,15 +517,13 @@ class Ui_MainWindow(QMainWindow):
             snr_db = self.snr_slider.value()
             self.noisy_signal = self.add_noise(self.signalData, snr_db)
             
-
-
             # Load existing signals
             signals_co, props_co = load_signals_from_json()
             for i, signal in enumerate(signals_co):
                 self.signals.append(signal)
                 self.signal_properties.append(props_co[i])
             
-            #Add components to signals list
+            # Add components to signals list
             for idx in significant_idx:
                 if frequencies[idx] >= 0:  # Only positive frequencies
                     amplitude = 2 * magnitudes[idx] / n_samples
@@ -552,14 +548,24 @@ class Ui_MainWindow(QMainWindow):
                         'type': 'sine'
                     })
             
+            # Update UI list
+            self.listWidget.clear()
+            for signal in self.signal_properties:
+                self.listWidget.addItem(signal['name'])
 
-            # self.listWidget.clear()
-            # for signal in self.signal_properties:
-            #     self.listWidget.addItem(signal['name'])
-            print(self.signalData)
+            # Ensure the signal data is properly set and UI is updated
             self.signalViewer.plot(self.t_orig, self.signalData, pen='w', name='Original Signal')
             self.startSampling(self.t_orig, self.signalData)
 
+            for i in range(len(self.signal_properties)):
+                print(f"Item {i} selected")
+                self.listWidget.setCurrentRow(i)
+                select_signal(self, True)
+
+            # then exit edit mode
+            self.listWidget.setCurrentRow(-1)
+            select_signal(self, False)
+            
 
 
         except Exception as e:
