@@ -28,8 +28,8 @@ class Audiogram(QWidget):
                         QtWidgets.QSizePolicy.Expanding)
 
         # Configure plots to expand
-        self.origianlSignalGraph.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
-                                            QtWidgets.QSizePolicy.Expanding)
+        # self.origianlSignalGraph.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+        #                                     QtWidgets.QSizePolicy.Expanding)
         self.filteredSignalGraph.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
                                             QtWidgets.QSizePolicy.Expanding)
         
@@ -58,19 +58,6 @@ class Audiogram(QWidget):
         # First graph (Original Signal)
         self.widget = QtWidgets.QWidget(self)
         self.widget.setObjectName("widget")
-        self.origianlSignalGraph = PlotWidget(self.widget)
-        self.origianlSignalGraph.setBackground('transparent')
-        self.origianlSignalGraph.showGrid(x=True, y=True)
-        
-        # Configure axis
-        self.origianlSignalGraph.getPlotItem().getAxis('bottom').setHeight(40)  # More height for x-axis
-        self.origianlSignalGraph.getPlotItem().layout.setContentsMargins(10, 10, 10, 25)  # Bottom margin
-        self.origianlSignalGraph.setStyleSheet("""
-            border: 2px solid #7AA2F7;
-            border-radius: 10px;
-            padding-bottom: 20px;
-        """)
-        self.horizontalLayout.addWidget(self.origianlSignalGraph)
         
         # Second graph (Filtered Signal) - same configuration
         self.widget_2 = QtWidgets.QWidget(self)
@@ -141,23 +128,18 @@ class Audiogram(QWidget):
         filtered_significant_peaks, filtered_signal_properties = find_peaks(filtered_magnitudes)
 
         # Reset graph settings
-        self.origianlSignalGraph.clear()
         self.filteredSignalGraph.clear()
         
         # Reset to linear scale
-        self.origianlSignalGraph.setLogMode(x=False, y=False)
         self.filteredSignalGraph.setLogMode(x=False, y=False)
         
         # Reset axis ranges
-        self.origianlSignalGraph.enableAutoRange()
         self.filteredSignalGraph.enableAutoRange()
         
         # Reset tick formatting
-        self.origianlSignalGraph.getAxis('bottom').setTicks(None)
         self.filteredSignalGraph.getAxis('bottom').setTicks(None)
         
         # Plot the data
-        self.origianlSignalGraph.plot(original_freqs, original_magnitudes, pen='b', name='Original Frequency Domain')
         self.filteredSignalGraph.plot(filtered_freqs, filtered_magnitudes, pen='r', name='Filtered Frequency Domain')
         
     def toggleShape(self):
@@ -190,7 +172,7 @@ class Audiogram(QWidget):
         filtered_magnitudes = filtered_magnitudes[::downsample_factor]
         
         # Configure graphs with reduced point density
-        for graph in [self.origianlSignalGraph, self.filteredSignalGraph]:
+        for graph in [self.filteredSignalGraph]:
             graph.clear()
             graph.setLogMode(x=True, y=False)
             graph.showGrid(x=True, y=True, alpha=0.3)
@@ -200,14 +182,14 @@ class Audiogram(QWidget):
         
         # Plot with symbols every N points
         symbol_every = 5  # Show symbols every 5 points
-        self.origianlSignalGraph.plot(freqs, original_magnitudes,
-                                    pen=dict(color='b', width=2),
-                                    name='Original Signal',
-                                    symbol='o',  # Circle symbol
-                                    symbolSize=5,  # Smaller symbols
-                                    symbolBrush='b',
-                                    symbolPen='b',
-                                    skipSymbols=symbol_every)  # Skip symbols
+        # self.origianlSignalGraph.plot(freqs, original_magnitudes,
+        #                             pen=dict(color='b', width=2),
+        #                             name='Original Signal',
+        #                             symbol='o',  # Circle symbol
+        #                             symbolSize=5,  # Smaller symbols
+        #                             symbolBrush='b',
+        #                             symbolPen='b',
+        #                             skipSymbols=symbol_every)  # Skip symbols
                                     
         self.filteredSignalGraph.plot(freqs, filtered_magnitudes,
                                     pen=dict(color='r', width=2),
