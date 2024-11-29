@@ -23,8 +23,10 @@ class Command:
     indices: List[int]
     signal_names: List[str]  # Add this field
 
-def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=1, sample_rate=7000):
-    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+
+
+def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=10, sample_rate=7000):
+    t = np.linspace(0, duration, int(sample_rate), endpoint=False)
     phase_shift_rad = np.deg2rad(phase_shift)
     if signal_type == "Sin":
         return amplitude * np.sin(2 * np.pi * frequency * t + phase_shift_rad)
@@ -40,6 +42,7 @@ def add_signal(self, add_command_bool= False):
     frequency = float(self.lineEdit_2.text())
     phase_shift = float(self.lineEdit_4.text())
     signal_name = self.lineEdit_3.text().strip()
+    duration= 10
 
     if frequency > 50:
         QtWidgets.QMessageBox.warning(self, "Invalid Input", "Frequency cannot exceed 50.")
@@ -57,7 +60,7 @@ def add_signal(self, add_command_bool= False):
         del self.selected_example_signal
         del self.selected_example_name
     else : 
-        signal = generate_signal(self,signal_type, amplitude, frequency, phase_shift)
+        signal = generate_signal(self,signal_type, amplitude, frequency, phase_shift, duration)
     # Store signal info for command
     signal_props = {
         'type': signal_type,
@@ -325,7 +328,7 @@ def update_signal_real_time(self, input_box):
 def update_plot(self, update_on_sampling=False, not_real_time=True):
     self.signalViewer.clear()
     if update_on_sampling:
-        self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
+        self.t_orig = np.linspace(0, 10, 7000, endpoint=False)
 
         if len(self.signals) == 0:
             self.samplingGraph.clear()
@@ -334,12 +337,9 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             
             return
     
-    if self.signals:
-        # Plot all signals in white
-        
+    if self.signals:        
         combined_signal = np.sum(self.signals, axis=0)
         if update_on_sampling:
-            
             self.signalViewer.plot(self.t_orig,combined_signal, pen='w')
         else:
             self.signalViewer.plot(combined_signal, pen='w')
@@ -379,7 +379,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
         if update_on_sampling and self.signalData is not None:
             # Generate time array
             self.frequencyDomainGraph.setXRange(-6, 6 )
-            self.t_orig = np.linspace(0, 1, 7000, endpoint=False)
+            self.t_orig = np.linspace(0, 10, 7000, endpoint=False)
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()
