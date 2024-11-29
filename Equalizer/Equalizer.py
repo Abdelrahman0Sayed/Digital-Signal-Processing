@@ -411,6 +411,14 @@ class Ui_MainWindow(QMainWindow):
                 if isinstance(self.modifiedData, str) or len(getattr(self.modifiedData, 'shape', [])) == 0:
                     self.modifiedData = self.signalData
 
+                # Create and add Audiogram instance
+                self.audiogramWidget = Audiogram(self.signalTime, self.signalData, self.modifiedData)
+                self.audiogramLayout.addWidget(self.audiogramWidget)
+                
+
+                # Update the audiogram with new data
+                self.audiogramWidget.updateData(self.signalTime, self.signalData, self.modifiedData)
+                
                 signalPlotting(self) 
                 plotSpectrogram(self)
                 updateEqualization(self)
@@ -423,34 +431,30 @@ class Ui_MainWindow(QMainWindow):
                 # Hide spinner when done
                 self.loadingSpinner.hide()
 
-    
-    def openFrequencyDomainWindow(self):
-        print("Opening Frequency Domain Window")
-        domainWindow = Audiogram(self.signalTime, self.signalData, self.modifiedData)
-        domainWindow.show()
-        domainWindow.exec_()
 
     def setupUi(self, MainWindow):
+        # 1. Basic window setup
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1329, 911)
         MainWindow.setStyleSheet(f"""
-    QMainWindow {{
-        background-color: {COLORS['background']};
-        color: {COLORS['text']};
-    }}
-""")
+            QMainWindow {{
+                background-color: {COLORS['background']};
+                color: {COLORS['text']};
+            }}
+        """)
+
+        # Create central widget and main layouts
         self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.centralwidget)
-        self.gridLayout_2.setObjectName("gridLayout_2")
         self.gridLayout = QtWidgets.QGridLayout()
-        self.gridLayout.setObjectName("gridLayout")
+        self.mainBodyframe = QtWidgets.QFrame(self.centralwidget)
+        self.mainbody = QtWidgets.QVBoxLayout()
+        self.verticalGraphs = QtWidgets.QVBoxLayout()
 
         # ------------------------------ Icons ---------------------------- #
         
+        # Icons setup
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Create absolute paths to images
         self.uploadIcon = QtGui.QIcon(os.path.join(base_dir, "images", "upload.png"))
         self.playIcon = QtGui.QIcon(os.path.join(base_dir, "images", "play.png"))
         self.stopIcon = QtGui.QIcon(os.path.join(base_dir, "images", "pause.png"))
@@ -461,6 +465,23 @@ class Ui_MainWindow(QMainWindow):
         self.zoomInIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_in.png"))
         self.zoomOutIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_out.png"))
         self.exportIcon = QtGui.QIcon(os.path.join(base_dir, "images", "file.png"))
+
+        # Main layout setup
+        self.mainBodyframe = QtWidgets.QFrame(self.centralwidget)
+        self.mainBodyframe.setStyleSheet(f"""
+            background-color: {COLORS['background']};
+            border-radius: 15px;
+            margin: 10px;
+        """)
+        self.mainBodyframe.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.mainBodyframe.setFrameShadow(QtWidgets.QFrame.Raised)
+        
+        # Create vertical layout for graphs and controls
+        self.verticalGraphs = QtWidgets.QVBoxLayout()
+        self.verticalGraphs.setSpacing(20)
+
+        # Create horizontal layout for time domain graphs
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
 
         # --------------------------- Important Attributes --------------------------- #
         self.equalizerMode= "Musical Instruments"
@@ -531,9 +552,9 @@ class Ui_MainWindow(QMainWindow):
         "")
         self.frequencyDomainButton.setIcon(self.signalIcon)
         self.frequencyDomainButton.setIconSize(QtCore.QSize(25, 25))
-        self.frequencyDomainButton.setObjectName("frequency domain")
+        self.frequencyDomainButton.setObjectName("Toggle frequency domain")
         self.verticalLayout_2.addWidget(self.frequencyDomainButton)
-        self.frequencyDomainButton.clicked.connect(lambda : self.openFrequencyDomainWindow())
+        self.frequencyDomainButton.clicked.connect(lambda : self.audiogramWidget.toggleShape())
 
 
         
@@ -794,292 +815,180 @@ class Ui_MainWindow(QMainWindow):
 
 
         self.gridLayout.addWidget(self.sideBarFrame, 0, 0, 1, 1)
-        # Main Body Frame
-        self.mainBodyframe = QtWidgets.QFrame(self.centralwidget)
-        self.mainBodyframe.setStyleSheet("background-color: #282c37;\n")
-        self.mainBodyframe.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.mainBodyframe.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.mainBodyframe.setObjectName("mainBodyframe")
-        self.gridLayout_3 = QtWidgets.QGridLayout(self.mainBodyframe)
-        self.gridLayout_3.setObjectName("gridLayout_3")
-        # Main Body Layout
-        self.mainbody = QtWidgets.QVBoxLayout()
-        self.mainbody.setContentsMargins(10, -1, 10, -1)
-        self.mainbody.setSpacing(6)
-        self.mainbody.setObjectName("mainbody")
-        # Layuot for Graphs in the same row.
-        self.verticalGraphs = QtWidgets.QVBoxLayout()
-        self.verticalGraphs.setSpacing(20)
-        self.verticalGraphs.setObjectName("verticalGraphs")
-        self.verticalLayout_3 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_3.setSpacing(20)
-        self.verticalLayout_3.setObjectName("verticalLayout_3")
+    
         
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        
-        
-        # Normal Graph 1
+        # Time domain graphs layout
         self.graph1 = pg.PlotWidget(self.mainBodyframe)
         self.graph1.setBackground("transparent")
         self.graph1.setObjectName("graph1")
         self.graph1.showGrid(x=True, y=True)
-
         self.graph1.setStyleSheet("border-radius: 6px;border: 2px solid white;")
-        self.horizontalLayout.addWidget(self.graph1)
-        
-        # Normal Graph 2
+
         self.graph2 = pg.PlotWidget(self.mainBodyframe)
-        self.graph2.setBackground("transparent")
+        self.graph2.setBackground("transparent") 
         self.graph2.showGrid(x=True, y=True)
         self.graph2.setObjectName("graph2")
         self.graph2.setStyleSheet("border-radius: 6px;border: 2px solid white;")
-        self.horizontalLayout.addWidget(self.graph2)
-        
-        self.verticalLayout_3.addLayout(self.horizontalLayout)
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_4.setObjectName("horizontalLayout_4")
-        spacerItem8 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout_4.addItem(spacerItem8)
-        
-        
-        #self.graph1.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
-        #self.graph2.getViewBox().sigRangeChanged.connect(lambda viewbox, viewrect: self.sync_pan(viewbox, viewrect))
+
+        # Add graphs to horizontal layout
+        horizontalLayout = QtWidgets.QHBoxLayout()
+        horizontalLayout.addWidget(self.graph1)
+        horizontalLayout.addWidget(self.graph2)
+
+        # Add horizontal layout to vertical layout
+        self.verticalGraphs.addLayout(horizontalLayout)
+
+        # Sync graph panning
         self.graph2.getViewBox().sigRangeChanged.connect(
             lambda viewbox, rect: self.sync_pan(viewbox, self.graph1.getViewBox())
         )
         self.graph1.getViewBox().sigRangeChanged.connect(
             lambda viewbox, rect: self.sync_pan(viewbox, self.graph2.getViewBox())
         )
+        # Control buttons layout
+        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
+
+        # Play/Pause button
         self.playPause = QtWidgets.QPushButton(self.mainBodyframe)
         font = QtGui.QFont()
         font.setFamily("-apple-system")
         font.setPointSize(14)
         font.setBold(True)
-        font.setWeight(75)
         self.playPause.setFont(font)
-        self.playPause.setStyleSheet("QPushButton{\n"
-        "background-color: #062e51;\n"
-        "border-radius: 6px;\n"
-        "color: #fff;\n"
-        "cursor: pointer;\n"
-        "border: 2px solid white;\n"
-        "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-        "font-size: 100%;\n"
-        "padding: 10px;\n"
-        "}\n"
-        "QPushButton:hover{\n"
-        "background-color: #283999;\n"
-        "}\n"
-        "QPushButton:pressed{\n"
-        "background-color: #1c2973;\n"
-        "}")
+        self.playPause.setStyleSheet(STYLES['BUTTON'])
         self.playPause.setIcon(self.stopIcon)
         self.playPause.setIconSize(QtCore.QSize(25, 25))
         self.playPause.setObjectName("playPause")
-        self.playPause.clicked.connect(lambda : togglePlaying(self))
+        self.playPause.clicked.connect(lambda: togglePlaying(self))
         self.horizontalLayout_4.addWidget(self.playPause)
+
+        # Reset button
         self.resetButton = QtWidgets.QPushButton(self.mainBodyframe)
-        
-        
-        
-        
-        font = QtGui.QFont()
-        font.setFamily("-apple-system")
-        font.setPointSize(14)
-        font.setBold(True)
-        font.setWeight(75)
         self.resetButton.setFont(font)
-        self.resetButton.setStyleSheet("QPushButton{\n"
-        "background-color: #062e51;\n"
-        "border-radius: 6px;\n"
-        "color: #fff;\n"
-        "border: 2px solid white;\n"
-        "cursor: pointer;\n"
-        "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-        "font-size: 100%;\n"
-        "padding: 10px;\n"
-        "}\n"
-        "QPushButton:hover{\n"
-        "background-color: #283999;\n"
-        "}\n"
-        "QPushButton:pressed{\n"
-        "background-color: #1c2973;\n"
-        "}")
+        self.resetButton.setStyleSheet(STYLES['BUTTON'])
         self.resetButton.setIcon(self.replayIcon)
         self.resetButton.setIconSize(QtCore.QSize(25, 25))
-        self.resetButton.setObjectName("resetButton")
-        self.resetButton.clicked.connect(lambda : resetSignal(self))
+        self.resetButton.clicked.connect(lambda: resetSignal(self))
         self.horizontalLayout_4.addWidget(self.resetButton)
-        
-        
-        
+
+        # Zoom buttons
         self.zoomIn = QtWidgets.QPushButton(self.mainBodyframe)
-        font = QtGui.QFont()
-        font.setFamily("-apple-system")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.zoomIn.setFont(font)
-        self.zoomIn.setStyleSheet("QPushButton{\n"
-        "background-color: #062e51;\n"
-        "border-radius: 6px;\n"
-        "color: #fff;\n"
-        "border: 2px solid white;\n"
-        "cursor: pointer;\n"
-        "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-        "font-size: 100%;\n"
-        "padding: 10px;\n"
-        "}\n"
-        "QPushButton:hover{\n"
-        "background-color: #283999;\n"
-        "}\n"
-        "QPushButton:pressed{\n"
-        "background-color: #1c2973;\n"
-        "}")
-       
+        self.zoomIn.setStyleSheet(STYLES['BUTTON'])
         self.zoomIn.setIcon(self.zoomInIcon)
         self.zoomIn.setIconSize(QtCore.QSize(25, 25))
-        self.zoomIn.setObjectName("zoomIn")
+        self.zoomIn.clicked.connect(lambda: zoomingIn(self))
         self.horizontalLayout_4.addWidget(self.zoomIn)
-        self.zoomIn.clicked.connect(lambda :zoomingIn(self))
-        
-        
+
         self.zoomOut = QtWidgets.QPushButton(self.mainBodyframe)
-        font = QtGui.QFont()
-        font.setFamily("-apple-system")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.zoomOut.setFont(font)
-        self.zoomOut.setStyleSheet("QPushButton{\n"
-        "background-color: #062e51;\n"
-        "border-radius: 6px;\n"
-        "color: #fff;\n"
-        "cursor: pointer;\n"
-        "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-        "font-size: 100%;\n"
-        "border: 2px solid white;\n"
-        "padding: 10px;\n"
-        "}\n"
-        "QPushButton:hover{\n"
-        "background-color: #283999;\n"
-        "}\n"
-        "QPushButton:pressed{\n"
-        "background-color: #1c2973;\n"
-        "}")
-        self.zoomOut.setText("")
+        self.zoomOut.setStyleSheet(STYLES['BUTTON'])
         self.zoomOut.setIcon(self.zoomOutIcon)
         self.zoomOut.setIconSize(QtCore.QSize(25, 25))
-        self.zoomOut.setObjectName("zoomOut")
+        self.zoomOut.clicked.connect(lambda: zoomingOut(self))
         self.horizontalLayout_4.addWidget(self.zoomOut)
-        self.zoomOut.clicked.connect(lambda :zoomingOut(self))
-        
+
+        # Speed controls layout
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setSpacing(3)
-        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        
+
+        # Speed Up button
         self.speedUp = QtWidgets.QPushButton(self.mainBodyframe)
-        self.speedUp.setStyleSheet("QPushButton{\n"
-                "background-color: #062e51;\n"
-                "border-radius: 6px;\n"
-                "color: #fff;\n"
-                "cursor: pointer;\n"
-                "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-                "font-size: 16px;\n"
-                "font-weight:bold;\n"
-                "padding: 8px;\n"
-                "border: 2px solid white;\n"
-                "margin: 10px;\n"
-                "}\n"
-                "QPushButton:hover{\n"
-                "background-color: #283999;\n"
-                "}\n"
-                "QPushButton:pressed{\n"
-                "background-color: #1c2973;\n"
-        "}")
-        self.speedUp.setObjectName("pushButton_2")
+        self.speedUp.setStyleSheet(STYLES['BUTTON'])
         self.speedUp.setIcon(self.speedUpIcon)
         self.speedUp.setIconSize(QtCore.QSize(25, 25))
+        self.speedUp.clicked.connect(lambda: speedingUp(self))
         self.horizontalLayout_3.addWidget(self.speedUp)
-        self.speedUp.clicked.connect(lambda :speedingUp(self))
 
+        # Speed Down button
         self.speedDown = QtWidgets.QPushButton(self.mainBodyframe)
-        self.speedDown.setStyleSheet("QPushButton{\n"
-                "background-color: #062e51;\n"
-                "border-radius: 6px;\n"
-                "color: #fff;\n"
-                "cursor: pointer;\n"
-                "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-                "font-size: 16px;\n"
-                "font-weight:bold;\n"
-                "padding: 8px;\n"
-                "border: 2px solid white;\n"
-                "margin: 10px;\n"
-                "}\n"
-                "QPushButton:hover{\n"
-                "background-color: #283999;\n"
-                "}\n"
-                "QPushButton:pressed{\n"
-                "background-color: #1c2973;\n"
-                "}")
-        self.speedDown.setObjectName("pushButton_3")
+        self.speedDown.setStyleSheet(STYLES['BUTTON'])
         self.speedDown.setIcon(self.speedDownIcon)
         self.speedDown.setIconSize(QtCore.QSize(25, 25))
+        self.speedDown.clicked.connect(lambda: speedingDown(self))
         self.horizontalLayout_3.addWidget(self.speedDown)
-        self.speedDown.clicked.connect(lambda :speedingDown(self))
 
-        spacerItem9 = QtWidgets.QSpacerItem(200, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout_3.addItem(spacerItem9)
-        spacerItem10 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout_3.addItem(spacerItem10)
-        spacerItem11 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout_3.addItem(spacerItem11)
-        spacerItem12 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout_3.addItem(spacerItem12)
+        # Add spacers
+        self.horizontalLayout_3.addItem(QtWidgets.QSpacerItem(200, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
-
-
+        # Add speed controls to main controls layout
         self.horizontalLayout_4.addLayout(self.horizontalLayout_3)
+
+        # Add controls to vertical layout
+        self.verticalLayout_3 = QtWidgets.QVBoxLayout()
         self.verticalLayout_3.addLayout(self.horizontalLayout_4)
         self.verticalGraphs.addLayout(self.verticalLayout_3)
+
+        # Add separator line
         self.line_8 = QtWidgets.QFrame(self.mainBodyframe)
-        self.line_8.setStyleSheet("/* Line style */\n"
-        "\n"
-        "  /* Set the width of the line */\n"
-        "  width: 20px;\n"
-        "\n"
-        "  /* Set the height of the line */\n"
-        "  height: 5px;\n"
-        "\n"
-        "  /* Set the background color of the line */\n"
-        "  background-color: #3a3b3c;\n"
-        "\n"
-        "  /* Set the border of the line */\n"
-        "  border: 10px;\n"
-        "\n"
-        "  /* Set the border radius of the line */\n"
-        "  border-radius:5px;\n"
-        "\n"
-        "\n"
-        "\n"
-        "")
+        self.line_8.setStyleSheet("""
+            width: 20px;
+            height: 5px;
+            background-color: #3a3b3c;
+            border: 10px;
+            border-radius: 5px;
+        """)
         self.line_8.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_8.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.line_8.setObjectName("line_8")
         self.verticalGraphs.addWidget(self.line_8)
+
+        # Create Audiogram container first (always visible)
+        self.audiogramContainer = QtWidgets.QWidget(self.mainBodyframe)
+        self.audiogramContainer.setStyleSheet(STYLES['SPECTROGRAM'])
+        self.audiogramContainer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
+                                            QtWidgets.QSizePolicy.Expanding)
+        self.audiogramContainer.setMinimumSize(800, 200)
+        self.audiogramLayout = QVBoxLayout(self.audiogramContainer)
+        self.audiogramLayout.setContentsMargins(0, 0, 0, 0)
+        self.audiogramLayout.setSpacing(0)
+
+        self.verticalGraphs.addWidget(self.audiogramContainer)
+
         
-        # Spectrogram Layout
+
+        # Add another line separator
+        self.line_9 = QtWidgets.QFrame(self.mainBodyframe)
+        self.line_9.setStyleSheet("""
+            width: 20px;
+            height: 5px;
+            background-color: #3a3b3c;
+            border: 10px;
+            border-radius: 5px;
+        """)
+        self.line_9.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_9.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.verticalGraphs.addWidget(self.line_9)
+
+        # Create Spectrogram Layout (can be toggled)
         self.spectrogramLayout = QtWidgets.QHBoxLayout()
         self.spectrogramLayout.setObjectName("spectrogramLayout")
-        self.spectrogramLayout.setSpacing(20)  # Add spacing between spectrograms
-        self.spectrogramLayout.setContentsMargins(10, 10, 10, 10)  # Add margins
+        self.spectrogramLayout.setSpacing(20)
+        self.spectrogramLayout.setContentsMargins(10, 10, 10, 10)
 
         # First Spectrogram
         self.firstSpectrogramFig = Figure(figsize=(5, 4))
         self.firstGraphCanvas = FigureCanvas(self.firstSpectrogramFig)
         self.firstGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
+        self.spectrogramLayout.addWidget(self.firstGraphCanvas)
+
+        # Second Spectrogram
+        self.secondSpectrogramFig = Figure(figsize=(5, 4))
+        self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
+        self.secondGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
+        self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
+        self.spectrogramLayout.addWidget(self.secondGraphCanvas)
+
+        # Create container for spectrograms
+        self.spectrogramContainer = QtWidgets.QWidget(self.mainBodyframe)
+        self.spectrogramContainer.setStyleSheet(STYLES['SPECTROGRAM'])
+        self.spectrogramContainer.setLayout(self.spectrogramLayout)
+        self.verticalGraphs.addWidget(self.spectrogramContainer)
+
+        # Update stretch factors
+        self.verticalGraphs.setStretch(0, 3)  # Time domain graphs
+        self.verticalGraphs.setStretch(1, 1)  # First separator
+        self.verticalGraphs.setStretch(2, 1)  # Audiogram
+        self.verticalGraphs.setStretch(3, 1)  # Second separator
+        self.verticalGraphs.setStretch(4, 1)  # Spectrograms
 
         # Style the first spectrogram
         self.firstGraphAxis.set_facecolor(COLORS['background'])
@@ -1090,18 +999,6 @@ class Ui_MainWindow(QMainWindow):
         for spine in self.firstGraphAxis.spines.values():
             spine.set_color(COLORS['accent'])
 
-        # Create container for first spectrogram
-        self.spectogram1 = QtWidgets.QWidget(self.mainBodyframe)
-        self.spectogram1.setStyleSheet(STYLES['SPECTROGRAM'])
-        self.firstGraphCanvas.draw()
-        self.spectrogramLayout.addWidget(self.firstGraphCanvas)
-
-        # Second Spectrogram
-        self.secondSpectrogramFig = Figure(figsize=(5, 4))
-        self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
-        self.secondGraphCanvas.setStyleSheet(STYLES['SPECTROGRAM'])
-        self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
-
         # Style the second spectrogram
         self.secondGraphAxis.set_facecolor(COLORS['background'])
         self.secondSpectrogramFig.patch.set_facecolor(COLORS['secondary'])
@@ -1111,44 +1008,43 @@ class Ui_MainWindow(QMainWindow):
         for spine in self.secondGraphAxis.spines.values():
             spine.set_color(COLORS['accent'])
 
-        # Create container for second spectrogram
-        self.spectogram2 = QtWidgets.QWidget(self.mainBodyframe)
-        self.spectogram2.setStyleSheet(STYLES['SPECTROGRAM'])
-        self.secondGraphCanvas.draw()
-        self.spectrogramLayout.addWidget(self.secondGraphCanvas)
-
-        # Add spectrograms to main layout
-        self.verticalGraphs.addLayout(self.spectrogramLayout)
-        self.verticalGraphs.setStretch(0, 2)
-        self.verticalGraphs.setStretch(1, 1)
-        self.verticalGraphs.setStretch(2, 2)
-        self.mainbody.addLayout(self.verticalGraphs)
+        # Add sliders section
         self.slidersWidget = QtWidgets.QWidget(self.mainBodyframe)
-        self.slidersWidget.setStyleSheet("background: rgba(74, 74, 74, 0);\n""")
+        self.slidersWidget.setStyleSheet("background: rgba(74, 74, 74, 0);")
         self.slidersWidget.setObjectName("slidersWidget")
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.slidersWidget)
         self.horizontalLayout_5.setSpacing(6)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
 
+        # Configure main layout
+        self.gridLayout_3 = QtWidgets.QGridLayout(self.mainBodyframe)
 
+        # Then modify the layout configuration:
+        self.mainbody.addLayout(self.verticalGraphs)
         self.mainbody.addWidget(self.slidersWidget)
         self.mainbody.setStretch(0, 4)
         self.mainbody.setStretch(1, 1)
+
         self.gridLayout_3.addLayout(self.mainbody, 0, 0, 1, 1)
         self.gridLayout.addWidget(self.mainBodyframe, 0, 1, 1, 1)
         self.gridLayout.setColumnStretch(0, 1)
         self.gridLayout.setColumnStretch(1, 6)
         self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
+
+        # Set up central widget and menu bar
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1329, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
 
+        # Connect signals and apply styles
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
         self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
+        self.apply_modern_styles()
+        apply_fonts(self)
+
 
         # Connect audio buttons
         self.playOriginalSignal.clicked.connect(lambda : playOriginalAudio(self))
@@ -1177,9 +1073,6 @@ class Ui_MainWindow(QMainWindow):
         self.loadingSpinner.setMinimum(0)
         self.loadingSpinner.hide()  # Hidden by default
         self.verticalLayout_2.addWidget(self.loadingSpinner)
-
-        self.apply_modern_styles()
-        apply_fonts(self)
 
 
     # Then modify sync_pan function:
@@ -1219,7 +1112,7 @@ class Ui_MainWindow(QMainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.browseFile.setText(_translate("MainWindow", "Browse File"))
-        self.frequencyDomainButton.setText(_translate("MainWindow", "Frequency Domain"))
+        #self.frequencyDomainButton.setText(_translate("MainWindow", "Frequency Domain"))
         self.modeLabel.setText(_translate("MainWindow", "Choose The Mode"))
         self.spectogramCheck.setText(_translate("MainWindow", "Hide The Spectograms"))
         self.originalSignal.setText(_translate("MainWindow", "Original Signal"))
