@@ -19,7 +19,153 @@ import matplotlib.pyplot as plt
 from Mixer_functions import handle_component_button, delete_signal, start_sampling, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, generate_signal, on_parameter_changed, update_plot, load_signals_from_json, select_example, open_examples_dialog
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
 
+# Define color palette
+COLORS = {
+    'background': '#1e1e1e',
+    'surface': '#252526',
+    'primary': '#007ACC',
+    'secondary': '#3E3E42',
+    'text': '#CCCCCC',
+    'border': '#323232'
+}
 
+# Add to COLORS dictionary
+COLORS.update({
+    'hover': '#404040',
+    'success': '#4CAF50',
+    'warning': '#FFA726',
+    'info': '#29B6F6'
+})
+
+BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-weight: bold;
+        font-size: 14px;
+    }}
+    QPushButton:hover {{
+        background-color: {COLORS['primary']};
+        border-color: {COLORS['primary']};
+    }}
+    QPushButton:pressed {{
+        background-color: {COLORS['hover']};
+    }}
+"""
+
+LIST_STYLE = f"""
+    QListWidget {{
+        background-color: {COLORS['background']};
+        color: {COLORS['text']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 4px;
+        padding: 4px;
+    }}
+    QListWidget::item {{
+        padding: 4px;
+    }}
+    QListWidget::item:selected {{
+        background-color: {COLORS['primary']};
+        color: white;
+    }}
+"""
+
+COMBO_STYLE = f"""
+    QComboBox {{
+        background-color: {COLORS['surface']};
+        color: {COLORS['text']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 4px;
+        padding: 4px 8px;
+        min-width: 100px;
+    }}
+    QComboBox:hover {{
+        border-color: {COLORS['primary']};
+    }}
+    QComboBox::drop-down {{
+        border: none;
+    }}
+"""
+
+LINE_EDIT_STYLE = f"""
+    QLineEdit {{
+        background-color: {COLORS['surface']};
+        color: {COLORS['text']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 4px;
+        padding: 4px 8px;
+    }}
+    QLineEdit:focus {{
+        border-color: {COLORS['primary']};
+    }}
+"""
+
+
+BROWSE_BUTTON_STYLE = f"""
+    QPushButton {{
+        background-color: {COLORS['secondary']};
+        color: {COLORS['text']};
+        border: 2px solid {COLORS['primary']};
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 15px;
+        padding: 10px 20px;
+        margin: 5px;
+        text-align: center;
+        min-width: 120px;
+    }}
+    QPushButton:hover {{
+        background-color: {COLORS['primary']};
+        color: white;
+    }}
+    QPushButton:pressed {{
+        background-color: {COLORS['hover']};
+    }}
+"""
+
+OPTIONS_GROUP_STYLE = f"""
+    QGroupBox {{
+        color: {COLORS['text']};
+        border: 2px solid {COLORS['primary']};
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+        font-size: 16px;
+        font-weight: bold;
+    }}
+    QGroupBox::title {{
+        subcontrol-origin: margin;
+        padding: 0 8px;
+        color: {COLORS['primary']};
+    }}
+"""
+
+SLIDER_STYLE = f"""
+    QSlider::groove:horizontal {{
+        border: 1px solid {COLORS['border']};
+        height: 4px;
+        background: {COLORS['surface']};
+        margin: 2px 0;
+        border-radius: 2px;
+    }}
+    QSlider::handle:horizontal {{
+        background: {COLORS['primary']};
+        border: none;
+        width: 16px;
+        height: 16px;
+        margin: -6px 0;
+        border-radius: 8px;
+    }}
+    QSlider::handle:horizontal:hover {{
+        background: {COLORS['hover']};
+        width: 18px;
+        height: 18px;
+        margin: -7px 0;
+    }}
+"""
 
 class Ui_MainWindow(QMainWindow):
 
@@ -79,6 +225,130 @@ class Ui_MainWindow(QMainWindow):
         # Connecting the Combobox to an Event Handler
         self.samplingType.currentIndexChanged.connect(self.updateInterpolationMethod)
 
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background: {COLORS['background']};
+            }}
+            QWidget#container {{
+                background: {COLORS['background']};
+                border: 1px solid {COLORS['border']};
+            }}
+            QWidget {{
+                background: {COLORS['background']};
+                color: {COLORS['text']};
+            }}
+            
+            /* Enhanced Button Styling */
+            QPushButton {{
+                background: {COLORS['secondary']};
+                border: none;
+                border-radius: 4px;
+                padding: 5px 15px;
+                color: {COLORS['text']};
+                transition: background 0.3s;
+            }}
+            QPushButton:hover {{
+                background: {COLORS['primary']};
+                color: white;
+            }}
+            QPushButton:pressed {{
+                background: #005999;
+            }}
+            
+            /* Window Control Buttons */
+            QPushButton#windowControl {{
+                background: transparent;
+                border-radius: 0px;
+                padding: 4px 8px;
+            }}
+            QPushButton#windowControl:hover {{
+                background: #3E3E42;
+            }}
+            QPushButton#closeButton:hover {{
+                background: #E81123;
+                color: white;
+            }}
+            
+            /* Enhanced ComboBox */
+            QComboBox {{
+                background: {COLORS['surface']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                padding: 5px;
+                color: {COLORS['text']};
+                min-width: 100px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {COLORS['primary']};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                image: url(down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }}
+            
+            /* Enhanced GroupBox */
+            QGroupBox {{
+                border: 1px solid {COLORS['border']};
+                color: {COLORS['text']};
+                margin-top: 12px;
+                font-weight: bold;
+                padding-top: 10px;
+            }}
+            QGroupBox:title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 3px;
+                color: {COLORS['primary']};
+            }}
+            
+            /* Enhanced Slider */
+            QSlider::groove:horizontal {{
+                background: {COLORS['surface']};
+                height: 4px;
+                border-radius: 2px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {COLORS['primary']};
+                width: 16px;
+                margin: -6px 0;
+                border-radius: 8px;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: #2299FF;
+                width: 18px;
+                margin: -7px 0;
+            }}
+            
+            /* Enhanced Progress Bar */
+            QProgressBar {{
+                background: {COLORS['surface']};
+                border: 1px solid {COLORS['border']};
+                color: {COLORS['text']};
+                border-radius: 4px;
+                text-align: center;
+            }}
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                        stop:0 {COLORS['primary']}, 
+                                        stop:1 #2299FF);
+                border-radius: 3px;
+            }}
+            
+            /* Image Display Enhancement */
+            QLabel#imageDisplay {{
+                background-color: {COLORS['background']};
+                border: 2px solid {COLORS['border']};
+                border-radius: 6px;
+                padding: 2px;
+            }}
+            QLabel#imageDisplay:hover {{
+                border: 2px solid {COLORS['primary']};
+            }}
+        """)
 
 
     def updateInterpolationMethod(self):
@@ -110,8 +380,8 @@ class Ui_MainWindow(QMainWindow):
             QPushButton{
                 border: 3px solid #d1d1d1;
                 border-radius: 10px;
-                font-weight:bold;
-                font-size:15px;             
+                font-weight:normal;
+                font-size:12px;             
                 padding: 5px 5px;
                 background-color:transparent;
                 color:#d1d1d1;
@@ -124,7 +394,7 @@ class Ui_MainWindow(QMainWindow):
         self.browseFileButton.clicked.connect(lambda: self.openFileDialog())
         self.leftLayout.addWidget(self.browseFileButton)
         self.browseFileButton.setIcon(self.uploadIcon)
-        self.browseFileButton.setIconSize(QtCore.QSize(40, 40))
+        self.browseFileButton.setIconSize(QtCore.QSize(20, 20))
         
         # Signal parameters group
         self.paramGroup = QtWidgets.QGroupBox("Signal Parameters")
@@ -261,7 +531,34 @@ class Ui_MainWindow(QMainWindow):
             }""")
         self.frequencyPlotting.setText(f"{self.frequencyShape}")
         self.frequencyPlotting.clicked.connect(lambda: self.changeFrequencyPlotting(self.frequencyShape))
+        # Update frequency plotting button style
+        self.frequencyPlotting.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['secondary']};
+                color: {COLORS['text']};
+                border: 2px solid {COLORS['primary']};
+                border-radius: 5px;
+                font-size: 14px;
+                padding: 10px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['primary']};
+                color: white;
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['hover']};
+            }}
+        """)
 
+        # Update plot widgets style
+        PLOT_STYLE = {
+            'background': COLORS['background'],
+            'foreground': COLORS['text'],
+            'title': {'color': COLORS['primary'], 'size': '14pt'},
+            'labels': {'color': COLORS['text'], 'font-size': '12pt'},
+            'axis': {'color': COLORS['border']}
+        }
         self.samplingFrequencyLabel = self.createLabel(f"{self.samplingFrequency:.2f}")
         self.samplingFactorLabel = self.createLabel(f"{self.samplingFactor:.2f}")
 
@@ -371,6 +668,38 @@ class Ui_MainWindow(QMainWindow):
         self.frequencyDomainGraph.setBackground("#001523")
         self.frequencyDomainGraphLayout.addWidget(self.frequencyDomainGraph)
         self.frequencyDomainGraph.showGrid(x=True, y=True)
+
+        self.signalViewer.setBackground(COLORS['background'])
+        self.samplingGraph.setBackground(COLORS['background'])
+        self.differenceGraph.setBackground(COLORS['background']) 
+        self.frequencyDomainGraph.setBackground(COLORS['background'])
+        self.listWidget.setStyleSheet(LIST_STYLE)
+
+        self.paramGroup.setStyleSheet(f"""
+            QGroupBox {{
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                margin-top: 16px;
+                padding: 8px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 8px;
+                padding: 0 4px;
+            }}
+        """)
+
+        self.browseFileButton.setStyleSheet(BROWSE_BUTTON_STYLE)
+
+        # Update options group style
+        self.optionsGroup.setStyleSheet(OPTIONS_GROUP_STYLE)
+
+        # Update all sliders
+        self.snr_slider.setStyleSheet(SLIDER_STYLE)
+        self.sampling_factor.setStyleSheet(SLIDER_STYLE)
+        self.sampling_frequency.setStyleSheet(SLIDER_STYLE)
 
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
@@ -832,59 +1161,30 @@ class Ui_MainWindow(QMainWindow):
 
     def createLabel(self, text):
         label = QtWidgets.QLabel(text)
-        label.setStyleSheet("font-size: 14px; font-weight: bold; color: white;")
+        label.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 14px;
+            font-weight: bold;
+        """)
         return label
-
 
     def createLineEdit(self, default_text, validator=None):
         lineEdit = QtWidgets.QLineEdit()
         lineEdit.setText(default_text)
         if validator:
             lineEdit.setValidator(validator)
-        lineEdit.setStyleSheet("""
-            QLineEdit {
-                font-size: 14px;
-                background-color: #d1d1d1;
-                color: black;
-                border: 2px solid white;
-                border-radius: 5px;
-                padding: 5px;
-                font-weight:bold;
-            }
-        """)
+        lineEdit.setStyleSheet(LINE_EDIT_STYLE)
         return lineEdit
-
 
     def createComboBox(self, items):
         comboBox = QtWidgets.QComboBox()
         comboBox.addItems(items)
-        comboBox.setStyleSheet("""
-            QComboBox {
-                font-size: 14px;
-                background-color: #d1d1d1;
-                color: black;
-                border: 2px solid white;
-                border-radius: 5px;
-                padding: 5px;
-                font-weight:bold;
-            }
-        """)
+        comboBox.setStyleSheet(COMBO_STYLE)
         return comboBox
-
 
     def createButton(self, text):
         button = QtWidgets.QPushButton(text)
-        button.setStyleSheet("""
-            QPushButton {
-                font-size: 14px;
-                background-color: #001523;
-                color: #d1d1d1;
-                border: 2px solid #d1d1d1;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight:bold;
-            }
-        """)
+        button.setStyleSheet(BUTTON_STYLE)
         return button
     
 
