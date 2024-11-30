@@ -44,7 +44,7 @@ class Audiogram(QWidget):
 
     def setupUi(self):
         self.resize(1464, 798)
-        self.setStyleSheet("background-color: #1b1d23;")
+        self.setStyleSheet("background-color: transparent;border: 0px;")
         
         self.gridLayout = QtWidgets.QGridLayout(self)
         self.gridLayout.setObjectName("gridLayout")
@@ -69,11 +69,6 @@ class Audiogram(QWidget):
         # Configure axis
         self.filteredSignalGraph.getPlotItem().getAxis('bottom').setHeight(40)
         self.filteredSignalGraph.getPlotItem().layout.setContentsMargins(10, 10, 10, 25)
-        self.filteredSignalGraph.setStyleSheet("""
-            border: 2px solid #7AA2F7;
-            border-radius: 10px;
-            padding-bottom: 20px;
-        """)
         self.horizontalLayout.addWidget(self.filteredSignalGraph)
         
         # Create vertical layout for the entire window
