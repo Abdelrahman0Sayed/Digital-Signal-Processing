@@ -167,44 +167,42 @@ STYLES['SLIDER'] = f"""
     }}
 """
 
-def changeMode(self, mode):
-    self.current_mode = mode
+# Function to create sliders based on mode
+def createSliders(self, ranges):
+    # Clear existing sliders
+    for i in reversed(range(self.sliderWindow.slidersLayout.count())): 
+        self.sliderWindow.slidersLayout.itemAt(i).widget().setParent(None)
     
-    # Clear existing layout first
-    for i in reversed(range(self.horizontalLayout_5.count())): 
-        widget = self.horizontalLayout_5.itemAt(i).widget()
-        if widget:
-            widget.deleteLater()
-    
-    # Reset lists
     self.sliders = []
     self.sliderLabels = []
     
-    # Create new sliders based on mode
-    if mode == "Uniform Range":
-        max_freq = self.samplingRate // 2 if hasattr(self, 'samplingRate') else 22050
-        band_width = max_freq / 10
-        
-        for i in range(10):
-            low = i * band_width
-            high = (i + 1) * band_width
-            createSlider(self, f"{int(low)}-\n{int(high)}Hz")
-            
-    elif mode == "Musical Instruments":
-        for instrument in self.instrument_ranges.keys():
-            createSlider(self, instrument)
-            
-    elif mode == "Animal Sounds":
-        for animal in self.animal_ranges.keys():
-            createSlider(self, animal)
-            
-    elif mode == "ECG Abnormalities":
-        for condition in self.ecg_ranges.keys():
-            createSlider(self, condition)
+    # Create new sliders
+    for range_name, freq_ranges in ranges.items():
+        for freq_range in freq_ranges:
+            slider = self.sliderWindow.addSlider(
+                f"{range_name} ({freq_range[0]}-{freq_range[1]}Hz)",
+                0, 20 , 10
+            )
+            self.sliders.append(slider)
+            self.sliderLabels.append(range_name)
+            slider.valueChanged.connect(lambda: updateEqualization(self))
 
-    # Force layout update
-    self.horizontalLayout_5.update()
-    updateEqualization(self)
+
+
+def changeMode(ui, mode):
+    ui.current_mode = mode
+    
+    if mode == "Musical Instruments":
+        ranges = ui.instrument_ranges
+    elif mode == "Animal Sounds":
+        ranges = ui.animal_ranges
+    elif mode == "ECG Abnormalities":
+        ranges = ui.ecg_ranges
+    else:  # Uniform Range
+        ranges = {"Band " + str(i): [(i*1000, (i+1)*1000)] for i in range(10)}
+    
+    createSliders(ui, ranges)
+    updateEqualization(ui)
 
 def createSlider(self, label_text):
     # Create container widget
@@ -512,73 +510,56 @@ def plotSpectrogram(self):
 
     
 
-
 def playOriginalAudio(self):
-    if hasattr(self, 'signalData') and hasattr(self, 'samplingRate'):
-        try:
-            # Stop any playing audio first
-            sd.stop()
-            # Play the original signal
-            sd.play(self.signalData, self.samplingRate)
-        except Exception as e:
-            print(f"Error playing original audio: {e}")
+    # Check if audio is currently playing
+    if hasattr(self, '_playing_original') and self._playing_original:
+        # Stop the audio
+        sd.stop()
+        self._playing_original = False
+        # Change button icon/text to play
+        self.playOriginalSignal.setIcon(self.playIcon)
+        self.playOriginalSignal.setText("Play Audio")
+    else:
+        # Stop any other playing audio first
+        sd.stop()
+        if hasattr(self, '_playing_filtered'):
+            self._playing_filtered = False
+            self.playFilteredSignal.setIcon(self.playIcon)
+            self.playFilteredSignal.setText("Play Audio")
+            
+        # Play the original audio
+        sd.play(self.signalData, self.samplingRate)
+        self._playing_original = True
+        # Change button icon/text to stop
+        self.playOriginalSignal.setIcon(self.stopIcon)
+        self.playOriginalSignal.setText("Stop Audio")
 
 def playFilteredAudio(self):
-    if hasattr(self, 'signalData') and hasattr(self, 'samplingRate'):
-        try:
-            # Stop any playing audio first
-            sd.stop()
+    # Check if audio is currently playing
+    if hasattr(self, '_playing_filtered') and self._playing_filtered:
+        # Stop the audio
+        sd.stop()
+        self._playing_filtered = False
+        # Change button icon/text to play
+        self.playFilteredSignal.setIcon(self.playIcon)
+        self.playFilteredSignal.setText("Play Audio")
+    else:
+        # Stop any other playing audio first
+        sd.stop()
+        if hasattr(self, '_playing_original'):
+            self._playing_original = False
+            self.playOriginalSignal.setIcon(self.playIcon)
+            self.playOriginalSignal.setText("Play Audio")
+
+        # Get the current modified data from the modifiedData attribute
+        current_modified_data = self.modifiedData
             
-            # Perform FFT on the signal data
-            signal_fft = np.fft.fft(self.signalData)
-            frequencies = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
-            
-            # Get current slider values and apply equalization
-            modified_fft = signal_fft.copy()
-            gains = [slider.value()/100 for slider in self.sliders]
-            
-            if self.current_mode == "Uniform Range":
-                max_freq = self.samplingRate // 2
-                band_width = max_freq / 10
-                
-                for i, gain in enumerate(gains):
-                    low_freq = i * band_width
-                    high_freq = (i + 1) * band_width
-                    freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
-                    modified_fft[freq_mask] *= gain
-            else:
-                # Handle other modes
-                ranges = None
-                if self.current_mode == "Musical Instruments":
-                    ranges = self.instrument_ranges
-                elif self.current_mode == "Animal Sounds":
-                    ranges = self.animal_ranges
-                elif self.current_mode == "ECG Abnormalities":
-                    ranges = self.ecg_ranges
-                    
-                if ranges:
-                    for (name, freq_ranges), gain in zip(ranges.items(), gains):
-                        for low_freq, high_freq in freq_ranges:
-                            freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
-                            modified_fft[freq_mask] *= gain
-            
-            # Convert back to time domain
-            filtered_signal = np.real(np.fft.ifft(modified_fft))
-            
-            # Normalize to prevent clipping
-            filtered_signal = filtered_signal / np.max(np.abs(filtered_signal))
-            
-            # Convert to same dtype as original signal
-            filtered_signal = filtered_signal.astype(self.signalData.dtype)
-            
-            # Play the filtered signal
-            sd.play(filtered_signal, self.samplingRate)
-            
-        except Exception as e:
-            print(f"Error playing filtered audio: {e}")
-            # Add more detailed error information
-            import traceback
-            traceback.print_exc()
+        # Play the filtered audio using current modified data
+        sd.play(current_modified_data, self.samplingRate)
+        self._playing_filtered = True
+        # Change button icon/text to stop
+        self.playFilteredSignal.setIcon(self.stopIcon)
+        self.playFilteredSignal.setText("Stop Audio")
 
 def stopAudio(self):
     sd.stop()
