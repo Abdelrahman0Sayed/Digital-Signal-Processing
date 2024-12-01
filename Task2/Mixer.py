@@ -13,7 +13,7 @@ from datetime import datetime
 from collections import deque
 from dataclasses import dataclass
 from typing import List, Any
-from Mixer_functions import handle_component_button, delete_signal, start_sampling, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, update_plot, generate_signal, on_parameter_changed, select_example, open_examples_dialog
+from Mixer_functions import handle_component_button, delete_signal, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, update_plot, generate_signal, on_parameter_changed, select_example, open_examples_dialog
 
 
 
@@ -454,7 +454,6 @@ class Mixer(QtWidgets.QWidget):
     def connectSignals(self):
         self.addComponent.clicked.connect(lambda: handle_component_button(self,False))
         self.deleteComponent.clicked.connect(lambda: delete_signal(self,True))
-        self.startSampling.clicked.connect(lambda: start_sampling(self))
         self.listWidget.itemClicked.connect(lambda: select_signal(self))
         
         self.lineEdit.textChanged.connect(lambda: update_signal_real_time(self,1))
