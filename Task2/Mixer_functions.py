@@ -488,28 +488,6 @@ def on_parameter_changed(self):
 
 
 
-def start_sampling(self):
-    if not self.signals:
-        return
-        
-    try:
-        # Generate unique filename with proper path
-        filename = self.generate_filename(self.signal_properties)
-        filepath = os.path.join(os.getcwd(), filename)  # Use proper path join
-        
-        # Save signal 
-        self.save_signals_to_csv(filepath)
-        self.emit_signals(filepath)
-
-        # save the self.signals array as json and self.signal_properties to a file to reload later
-        save_signals_to_json(self.signals, self.signal_properties)
-
-        self.clear_data()
-        self.close()
-    except Exception as e:
-        QMessageBox.critical(self, "Error", f"Sampling failed: {str(e)}")
-
-
 
 def save_signals_to_json(signals, signal_properties):
     # Save signals and properties to JSON
