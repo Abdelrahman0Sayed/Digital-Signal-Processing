@@ -20,6 +20,7 @@ from scipy import signal
 import time
 from audiogram import Audiogram
 
+
 COLORS = {
     'background': '#1E1E2E',  # Dark background
     'secondary': '#252535',   # Slightly lighter background
@@ -190,8 +191,29 @@ def createSliders(self, ranges):
 
 
 def changeMode(ui, mode):
-    ui.current_mode = mode
+    print(f"Changing mode to: {mode}")
     
+    # Check if signal data exists
+    if not hasattr(ui, 'signalData') or ui.signalData is None or len(ui.signalData) == 0:
+        print("No signal data loaded. Loading mode without processing.")
+        ui.current_mode = mode
+        
+        # Set ranges based on mode
+        if mode == "Musical Instruments":
+            ranges = ui.instrument_ranges
+        elif mode == "Animal Sounds":
+            ranges = ui.animal_ranges
+        elif mode == "ECG Abnormalities":
+            ranges = ui.ecg_ranges
+        else:  # Uniform Range
+            ranges = {"Band " + str(i): [(i*1000, (i+1)*1000)] for i in range(10)}
+            
+        # Create sliders without updating equalization
+        createSliders(ui, ranges)
+        return
+    
+    # Normal mode change with signal data
+    ui.current_mode = mode
     if mode == "Musical Instruments":
         ranges = ui.instrument_ranges
     elif mode == "Animal Sounds":
@@ -199,10 +221,22 @@ def changeMode(ui, mode):
     elif mode == "ECG Abnormalities":
         ranges = ui.ecg_ranges
     else:  # Uniform Range
-        ranges = {"Band " + str(i): [(i*1000, (i+1)*1000)] for i in range(10)}
+        max_freq = ui.samplingRate // 2 if hasattr(ui, 'samplingRate') else 22050
+        band_width = max_freq / 10
+        ranges = {f"Band {i}": [(i*band_width, (i+1)*band_width)] for i in range(10)}
     
+    # Reset cache
+    ui.cached = False
+    if hasattr(ui, '_cached_fft'):
+        del ui._cached_fft
+    if hasattr(ui, '_cached_freqs'):
+        del ui._cached_freqs
+        
     createSliders(ui, ranges)
     updateEqualization(ui)
+
+
+
 
 def createSlider(self, label_text):
     # Create container widget
@@ -258,15 +292,16 @@ def updateEqualization(self):
         return
     self._last_update = time.time()
 
-    # Cache FFT results if not already cached
-    if not hasattr(self, '_cached_fft'):
+    # # Cache FFT results if not already cached
+    if not self.cached:
         self._cached_fft = np.fft.fft(self.signalData)
         self._cached_freqs = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
+        self.cached= True
 
     # Work with cached FFT
     signal_fft = self._cached_fft.copy()
     frequencies = self._cached_freqs
-    gains = [slider.value()/100 for slider in self.sliders]
+    gains = [slider.value()/10 for slider in self.sliders]
 
     # Apply equalization
     if self.current_mode == "Uniform Range":
@@ -277,13 +312,27 @@ def updateEqualization(self):
         for i, gain in enumerate(gains):
             freq_mask = (np.abs(frequencies) >= i * band_width) & (np.abs(frequencies) < (i + 1) * band_width)
             signal_fft[freq_mask] *= gain
+    
     else:
         if self.current_mode == "Musical Instruments":
             ranges = self.instrument_ranges
         elif self.current_mode == "Animal Sounds":
+            gains = [slider.value() for slider in self.sliders]  # Remove /100 division
             ranges = self.animal_ranges
+            
+            for (name, freq_ranges), gain in zip(ranges.items(), gains):
+                gain = gain/100  
+                for low_freq, high_freq in freq_ranges:
+                    freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+                    signal_fft[freq_mask] *= gain
         elif self.current_mode == "ECG Abnormalities":
+            gains = [slider.value()/10 for slider in self.sliders]  # Add /100 scaling
             ranges = self.ecg_ranges
+            for (name, freq_ranges), gain in zip(ranges.items(), gains):
+                for low_freq, high_freq in freq_ranges:
+                    freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+                    signal_fft[freq_mask] *= gain
+                
             
         for (name, freq_ranges), gain in zip(ranges.items(), gains):
             for low_freq, high_freq in freq_ranges:
@@ -304,6 +353,7 @@ def updateEqualization(self):
             sd.play(filtered_signal, self.samplingRate)
         except Exception as e:
             print(f"Error restarting audio: {e}")
+
 
     # Update visualizations
     # Downsample for visualization if signal is too long
@@ -360,6 +410,9 @@ def toggleVisibility(self):
     else:
         self.spectrogramContainer.show()
         self.spectogramCheck.setText("Hide Spectrograms")
+
+
+
 def signalPlotting(self):
     from scipy import signal
 
@@ -591,3 +644,35 @@ def export_signal(self):
                 'Amplitude': self.modifiedData
             })
             df.to_csv(file_path, index=False)
+
+
+def deleteSignal(self):
+    # Delete All Signals
+    if hasattr(self, 'graph1'):
+        self.graph1.clear()
+    if hasattr(self, 'graph2'):
+        self.graph2.clear()
+    if hasattr(self, 'firstGraphAxis'):
+        self.firstGraphAxis.clear()  
+        self.firstGraphCanvas.draw()
+    if hasattr(self, 'secondGraphAxis'):  
+        self.secondGraphAxis.clear()  
+        self.secondGraphCanvas.draw() 
+    if hasattr(self, 'audiogramWidget'):
+        self.audiogramWidget.deleteSignal()
+    
+    self.frequency_scale = "Linear"
+    self.signalData = ""
+    self.signalTime = ""
+    self.modifiedData = ""
+    self.cached = False  
+    if hasattr(self, '_cached_fft'):
+        del self._cached_fft  # Remove cached FFT
+    if hasattr(self, '_cached_freqs'):
+        del self._cached_freqs  # Remove cached frequencies
+    
+    self.lastLoadedSignal = None
+    self.lastModifiedSignal = None
+    
+    self.signalTimeIndex = 0
+    self.domain = "Time Domain"

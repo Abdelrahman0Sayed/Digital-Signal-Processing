@@ -19,9 +19,17 @@ import pyqtgraph as pg
 class Audiogram(QWidget):
     def __init__(self, signalsTime, originalSignal, filteredSignal, parent=None):
         super().__init__()
-        self.signalsTime = signalsTime
-        self.originalSignal = originalSignal
-        self.filteredSignal = filteredSignal
+            # Initialize with minimum valid data if empty
+        if len(signalsTime) == 0 or len(originalSignal) == 0:
+            self.signalsTime = np.array([0])
+            self.originalSignal = np.array([0])
+            self.filteredSignal = np.array([0])
+        else:
+            self.signalsTime = signalsTime
+            self.originalSignal = originalSignal
+            self.filteredSignal = filteredSignal
+
+
         self.setupUi()
         # Set size policy to expand
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, 
@@ -111,6 +119,8 @@ class Audiogram(QWidget):
     
     def plotSignificantFrequencies(self):
         # Previous FFT calculations remain the same
+        if len(self.originalSignal) <= 1:
+            return
         fft_original_signal = np.fft.fft(self.originalSignal)
         original_freqs = np.fft.fftfreq(len(self.originalSignal), d=(self.signalsTime[1] - self.signalsTime[0]))
         original_magnitudes = np.abs(fft_original_signal) / len(self.originalSignal)
@@ -205,6 +215,10 @@ class Audiogram(QWidget):
             self.plotSignificantFrequencies()
         self.show()
     
+    def deleteSignal(self):
+        self.filteredSignalGraph.clear()
+
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)  

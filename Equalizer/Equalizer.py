@@ -11,7 +11,7 @@ from scipy.io import wavfile
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from equalizer_functions import changeMode, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal 
+from equalizer_functions import changeMode, createSliders, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
 from audiogram import Audiogram
 import sys
 import os
@@ -635,7 +635,7 @@ class Ui_MainWindow(QMainWindow):
         self.signalTimer = QTimer()
         self.signalTimeIndex = 0
         self.domain="Time Domain"
-        
+        self.cached= False
         
         self.instrument_ranges = {
             "Trumpet": [(0, 500)],      # Low frequency range
@@ -722,6 +722,8 @@ class Ui_MainWindow(QMainWindow):
         
         if file_path:
             try:
+                deleteSignal(self)
+                self.cached = False  
                 # Stop any playing audio and timers
                 sd.stop()
                 if hasattr(self, 'signalTimer'):
@@ -748,6 +750,8 @@ class Ui_MainWindow(QMainWindow):
                 
                 if extension == "wav" or extension == "mp3":
                     self.signalData, self.samplingRate = librosa.load(file_path)
+                    self.modifiedData = self.signalData
+                    
                     duration = librosa.get_duration(y=self.signalData, sr=self.samplingRate)
                     self.signalTime = np.linspace(0, duration, len(self.signalData))
                 elif extension == "csv":
@@ -755,7 +759,6 @@ class Ui_MainWindow(QMainWindow):
                         return
 
                 # Create fresh copies of signal data
-                self.modifiedData = np.copy(self.signalData)
                 
                 # Clean up old audiogram
                 if hasattr(self, 'audiogramWidget'):
@@ -764,8 +767,8 @@ class Ui_MainWindow(QMainWindow):
                 # Create new audiogram
                 self.audiogramWidget = Audiogram(
                     self.signalTime, 
-                    np.copy(self.signalData), 
-                    np.copy(self.modifiedData)
+                    self.signalData, 
+                    self.modifiedData
                 )
                 self.audiogramLayout.addWidget(self.audiogramWidget)
 
@@ -777,7 +780,7 @@ class Ui_MainWindow(QMainWindow):
                 
                 # Store references
                 self.lastLoadedSignal = np.copy(self.signalData)
-                self.lastModifiedSignal = np.copy(self.modifiedData)
+                self.lastModifiedSignal = np.copy(self.signalData)
                 
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Error loading file: {str(e)}")
@@ -787,6 +790,7 @@ class Ui_MainWindow(QMainWindow):
 
     def load_csv_data(self, file_path):
         try:
+            deleteSignal(self)
             # First try to read the header to detect format
             with open(file_path, 'r') as f:
                 first_line = f.readline().strip()
@@ -795,21 +799,46 @@ class Ui_MainWindow(QMainWindow):
                 fileData = pd.read_csv(file_path, delimiter=',', skiprows=1)
                 self.signalTime = np.array(fileData.iloc[:, 0].astype(float).tolist())
                 self.signalData = np.array(fileData.iloc[:, 1].astype(float).tolist())
-                self.samplingRate = 1 / np.mean(np.diff(self.signalTime))
+                
+                # Validate time data
+                if len(self.signalTime) < 2:
+                    raise ValueError("CSV file must contain at least 2 data points")
+                
+                # Calculate and validate sampling rate
+                time_diff = np.diff(self.signalTime)
+                if not np.all(time_diff > 0):
+                    raise ValueError("Time values must be strictly increasing")
+                self.samplingRate = 1 / np.mean(time_diff)
+                
             else:  # Single column format
-                # Read as single column, ignore header if exists
                 try:
                     fileData = pd.read_csv(file_path, header=None, skiprows=1)
                 except:
                     fileData = pd.read_csv(file_path, header=None)
                 
                 self.signalData = np.array(fileData.iloc[:, 0].astype(float).tolist())
-                # Generate time values with default sampling rate of 1000Hz
-                self.samplingRate = 1000
+                
+                # Validate data
+                if len(self.signalData) < 2:
+                    raise ValueError("CSV file must contain at least 2 data points")
+                
+                # Generate time values
+                self.samplingRate = 1000  # Default sampling rate
                 duration = len(self.signalData) / self.samplingRate
                 self.signalTime = np.linspace(0, duration, len(self.signalData))
             
+            # Initialize modified data
+            self.modifiedData = np.copy(self.signalData)
             self.speed = 3
+            
+            # Reset cache
+            self.cached = False
+            if hasattr(self, '_cached_fft'):
+                del self._cached_fft
+            if hasattr(self, '_cached_freqs'):
+                del self._cached_freqs
+                
+
             return True
 
         except Exception as e:
@@ -818,6 +847,11 @@ class Ui_MainWindow(QMainWindow):
                 "Error", 
                 f"Error loading CSV file: {str(e)}\nExpected format: either 'time,amplitude' pairs or single column of amplitudes"
             )
+            # Initialize with safe defaults on error
+            self.signalData = np.zeros(2)
+            self.modifiedData = np.zeros(2)
+            self.signalTime = np.linspace(0, 1/1000, 2)
+            self.samplingRate = 1000
             return False
     
     def setupUi(self, MainWindow):
@@ -853,6 +887,8 @@ class Ui_MainWindow(QMainWindow):
         self.zoomInIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_in.png"))
         self.zoomOutIcon = QtGui.QIcon(os.path.join(base_dir, "images", "zoom_out.png"))
         self.exportIcon = QtGui.QIcon(os.path.join(base_dir, "images", "file.png"))
+        self.deleteIcon = QtGui.QIcon(os.path.join(base_dir, "images", "bin.png"))
+
 
         # Main layout setup
         self.mainBodyframe = QtWidgets.QFrame(self.centralwidget)
@@ -941,7 +977,7 @@ class Ui_MainWindow(QMainWindow):
         self.frequencyDomainButton.clicked.connect(lambda : self.audiogramWidget.toggleShape())
 
 
-        
+
     
         
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -1193,6 +1229,15 @@ class Ui_MainWindow(QMainWindow):
         self.graphsLayout.addWidget(self.graph1)
         self.graphsLayout.addWidget(self.graph2)
         
+
+        # viewbox1 = self.graph1.getViewBox()
+        # viewbox2 = self.graph2.getViewBox()
+
+        # # Connect the ViewBox signals in both directions
+        # viewbox1.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox1, viewbox2))
+        # viewbox2.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox2, viewbox1))
+
+
         self.controlButtonsLayout = QtWidgets.QHBoxLayout()
         self.controlButtonsLayout.setAlignment(QtCore.Qt.AlignCenter)  # Center alignment
 
@@ -1244,7 +1289,12 @@ class Ui_MainWindow(QMainWindow):
         self.speedDown.clicked.connect(lambda: speedingDown(self))
 
 
-        
+        self.deleteButton = QtWidgets.QPushButton(self.mainBodyframe)
+        self.deleteButton.setStyleSheet(STYLES['BUTTON'])
+        self.deleteButton.setIcon(self.deleteIcon)
+        self.deleteButton.setIconSize(QtCore.QSize(15, 15))
+        self.deleteButton.clicked.connect(lambda: speedingDown(self))
+        self.deleteButton.clicked.connect(lambda: deleteSignal(self))        
 
         # Add buttons vertically
         self.controlButtonsLayout.addWidget(self.playPause)
@@ -1253,6 +1303,7 @@ class Ui_MainWindow(QMainWindow):
         self.controlButtonsLayout.addWidget(self.zoomOut)
         self.controlButtonsLayout.addWidget(self.speedUp)
         self.controlButtonsLayout.addWidget(self.speedDown)
+        self.controlButtonsLayout.addWidget(self.deleteButton)
         
         # Add stretch to push buttons to top
         self.controlButtonsLayout.addStretch()
@@ -1603,7 +1654,6 @@ class Ui_MainWindow(QMainWindow):
     def sync_pan(self, viewbox, viewrect):
         """
         Synchronize panning between two viewboxes
-        
         Args:
             viewbox: Source viewbox that triggered the pan
             viewrect: Target viewbox to be synchronized
@@ -1828,22 +1878,43 @@ class SliderWindow(QtWidgets.QWidget):
         self.slidersLayout.addWidget(sliderWidget)
         return slider
 
+
+
+
 if __name__ == "__main__":
     import sys
+    from PyQt5 import QtWidgets
+    from equalizer_functions import changeMode, updateEqualization, signalPlotting, plotSpectrogram
+    import numpy as np
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-    MainWindow.show()
-    # open the file dialog
-    ui.browseFile.click()
-    
-    signalPlotting(ui)
-    plotSpectrogram(ui)
-    updateEqualization(ui)
-    changeMode(ui, ui.current_mode)
 
+    # Initialize with minimal valid data
+    ui.signalData = np.array([0])
+    ui.modifiedData = np.array([0])
+    ui.signalTime = np.array([0])
+    ui.samplingRate = 44100
+    ui.cached = False
+    ui.current_mode = "Musical Instruments"
     
+    # Initialize audiogram
+    ui.audiogramWidget = Audiogram(
+        ui.signalTime, 
+        ui.signalData, 
+        ui.modifiedData
+    )
+    ui.audiogramLayout.addWidget(ui.audiogramWidget)
+
+    # Create initial sliders
+    max_freq = ui.samplingRate // 2
+    band_width = max_freq / 10
+    ranges = {f"Band {i}": [(i*band_width, (i+1)*band_width)] for i in range(10)}
+    createSliders(ui, ranges)
+
+    MainWindow.show()
     sys.exit(app.exec_())
 
 
