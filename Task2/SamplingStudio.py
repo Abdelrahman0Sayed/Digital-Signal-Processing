@@ -16,156 +16,10 @@ from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsEllipseItem
 from scipy import signal
 from Mixer import Mixer
 import matplotlib.pyplot as plt
-from Mixer_functions import handle_component_button, delete_signal, start_sampling, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, generate_signal, on_parameter_changed, update_plot, load_signals_from_json, select_example, open_examples_dialog
+from Mixer_functions import handle_component_button, delete_signal, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, generate_signal, on_parameter_changed, update_plot, load_signals_from_json, select_example, open_examples_dialog
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
+from style import COLORS, BROWSE_BUTTON_STYLE, OPTIONS_GROUP_STYLE, SLIDER_STYLE, LIST_STYLE, COMBO_STYLE, MAIN_WINDOW_STYLE,LINE_EDIT_STYLE,BUTTON_STYLE
 
-# Define color palette
-COLORS = {
-    'background': '#1e1e1e',
-    'surface': '#252526',
-    'primary': '#007ACC',
-    'secondary': '#3E3E42',
-    'text': '#CCCCCC',
-    'border': '#323232'
-}
-
-# Add to COLORS dictionary
-COLORS.update({
-    'hover': '#404040',
-    'success': '#4CAF50',
-    'warning': '#FFA726',
-    'info': '#29B6F6'
-})
-
-BUTTON_STYLE = f"""
-    QPushButton {{
-        background-color: {COLORS['secondary']};
-        color: {COLORS['text']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 4px;
-        padding: 8px 16px;
-        font-weight: bold;
-        font-size: 14px;
-    }}
-    QPushButton:hover {{
-        background-color: {COLORS['primary']};
-        border-color: {COLORS['primary']};
-    }}
-    QPushButton:pressed {{
-        background-color: {COLORS['hover']};
-    }}
-"""
-
-LIST_STYLE = f"""
-    QListWidget {{
-        background-color: {COLORS['background']};
-        color: {COLORS['text']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 4px;
-        padding: 4px;
-    }}
-    QListWidget::item {{
-        padding: 4px;
-    }}
-    QListWidget::item:selected {{
-        background-color: {COLORS['primary']};
-        color: white;
-    }}
-"""
-
-COMBO_STYLE = f"""
-    QComboBox {{
-        background-color: {COLORS['surface']};
-        color: {COLORS['text']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 4px;
-        padding: 4px 8px;
-        min-width: 100px;
-    }}
-    QComboBox:hover {{
-        border-color: {COLORS['primary']};
-    }}
-    QComboBox::drop-down {{
-        border: none;
-    }}
-"""
-
-LINE_EDIT_STYLE = f"""
-    QLineEdit {{
-        background-color: {COLORS['surface']};
-        color: {COLORS['text']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 4px;
-        padding: 4px 8px;
-    }}
-    QLineEdit:focus {{
-        border-color: {COLORS['primary']};
-    }}
-"""
-
-
-BROWSE_BUTTON_STYLE = f"""
-    QPushButton {{
-        background-color: {COLORS['secondary']};
-        color: {COLORS['text']};
-        border: 2px solid {COLORS['primary']};
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 15px;
-        padding: 10px 20px;
-        margin: 5px;
-        text-align: center;
-        min-width: 120px;
-    }}
-    QPushButton:hover {{
-        background-color: {COLORS['primary']};
-        color: white;
-    }}
-    QPushButton:pressed {{
-        background-color: {COLORS['hover']};
-    }}
-"""
-
-OPTIONS_GROUP_STYLE = f"""
-    QGroupBox {{
-        color: {COLORS['text']};
-        border: 2px solid {COLORS['primary']};
-        border-radius: 8px;
-        padding: 15px;
-        margin-top: 15px;
-        font-size: 16px;
-        font-weight: bold;
-    }}
-    QGroupBox::title {{
-        subcontrol-origin: margin;
-        padding: 0 8px;
-        color: {COLORS['primary']};
-    }}
-"""
-
-SLIDER_STYLE = f"""
-    QSlider::groove:horizontal {{
-        border: 1px solid {COLORS['border']};
-        height: 4px;
-        background: {COLORS['surface']};
-        margin: 2px 0;
-        border-radius: 2px;
-    }}
-    QSlider::handle:horizontal {{
-        background: {COLORS['primary']};
-        border: none;
-        width: 16px;
-        height: 16px;
-        margin: -6px 0;
-        border-radius: 8px;
-    }}
-    QSlider::handle:horizontal:hover {{
-        background: {COLORS['hover']};
-        width: 18px;
-        height: 18px;
-        margin: -7px 0;
-    }}
-"""
 
 class Ui_MainWindow(QMainWindow):
 
@@ -186,7 +40,7 @@ class Ui_MainWindow(QMainWindow):
         self.timer.start(100)
 
         self.loadedSignals = []
-        self.samplingFrequency = 10
+        self.samplingFrequency = 0
         self.samplingFactor= 0
         
         self.frequencyShape = "Pulses"
@@ -226,130 +80,7 @@ class Ui_MainWindow(QMainWindow):
         # Connecting the Combobox to an Event Handler
         self.samplingType.currentIndexChanged.connect(self.updateInterpolationMethod)
 
-        self.setStyleSheet(f"""
-            QMainWindow {{
-                background: {COLORS['background']};
-            }}
-            QWidget#container {{
-                background: {COLORS['background']};
-                border: 1px solid {COLORS['border']};
-            }}
-            QWidget {{
-                background: {COLORS['background']};
-                color: {COLORS['text']};
-            }}
-            
-            /* Enhanced Button Styling */
-            QPushButton {{
-                background: {COLORS['secondary']};
-                border: none;
-                border-radius: 4px;
-                padding: 5px 15px;
-                color: {COLORS['text']};
-                transition: background 0.3s;
-            }}
-            QPushButton:hover {{
-                background: {COLORS['primary']};
-                color: white;
-            }}
-            QPushButton:pressed {{
-                background: #005999;
-            }}
-            
-            /* Window Control Buttons */
-            QPushButton#windowControl {{
-                background: transparent;
-                border-radius: 0px;
-                padding: 4px 8px;
-            }}
-            QPushButton#windowControl:hover {{
-                background: #3E3E42;
-            }}
-            QPushButton#closeButton:hover {{
-                background: #E81123;
-                color: white;
-            }}
-            
-            /* Enhanced ComboBox */
-            QComboBox {{
-                background: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
-                border-radius: 4px;
-                padding: 5px;
-                color: {COLORS['text']};
-                min-width: 100px;
-            }}
-            QComboBox:hover {{
-                border: 1px solid {COLORS['primary']};
-            }}
-            QComboBox::drop-down {{
-                border: none;
-            }}
-            QComboBox::down-arrow {{
-                image: url(down_arrow.png);
-                width: 12px;
-                height: 12px;
-            }}
-            
-            /* Enhanced GroupBox */
-            QGroupBox {{
-                border: 1px solid {COLORS['border']};
-                color: {COLORS['text']};
-                margin-top: 12px;
-                font-weight: bold;
-                padding-top: 10px;
-            }}
-            QGroupBox:title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                padding: 0 3px;
-                color: {COLORS['primary']};
-            }}
-            
-            /* Enhanced Slider */
-            QSlider::groove:horizontal {{
-                background: {COLORS['surface']};
-                height: 4px;
-                border-radius: 2px;
-            }}
-            QSlider::handle:horizontal {{
-                background: {COLORS['primary']};
-                width: 16px;
-                margin: -6px 0;
-                border-radius: 8px;
-            }}
-            QSlider::handle:horizontal:hover {{
-                background: #2299FF;
-                width: 18px;
-                margin: -7px 0;
-            }}
-            
-            /* Enhanced Progress Bar */
-            QProgressBar {{
-                background: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
-                color: {COLORS['text']};
-                border-radius: 4px;
-                text-align: center;
-            }}
-            QProgressBar::chunk {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                                        stop:0 {COLORS['primary']}, 
-                                        stop:1 #2299FF);
-                border-radius: 3px;
-            }}
-            
-            /* Image Display Enhancement */
-            QLabel#imageDisplay {{
-                background-color: {COLORS['background']};
-                border: 2px solid {COLORS['border']};
-                border-radius: 6px;
-                padding: 2px;
-            }}
-            QLabel#imageDisplay:hover {{
-                border: 2px solid {COLORS['primary']};
-            }}
-        """)
+        self.setStyleSheet(MAIN_WINDOW_STYLE)
 
 
     def updateInterpolationMethod(self):
@@ -512,7 +243,7 @@ class Ui_MainWindow(QMainWindow):
         # Slider for changing Hertz
         self.sampling_frequency = QSlider(Qt.Horizontal)
         self.sampling_frequency.setMinimum(0)           
-        self.sampling_frequency.setValue(10) 
+        self.sampling_frequency.setValue(0) 
         self.sampling_frequency.setTickInterval(1)       
         self.sampling_frequency.setSingleStep(1)        
         self.sampling_frequency.setTickPosition(QSlider.TicksBelow)
@@ -903,36 +634,33 @@ class Ui_MainWindow(QMainWindow):
 
 
 
-    def sinc_interpolation(self, t, t_sampled, sampled_signal):
-        reconstructed_signal = np.zeros_like(t)
-        # Perform Whittaker-Shannon Equation (sinc interpolation)
-        for i, t_i in enumerate(t):
-            sinc_values = np.sinc((t_i - t_sampled) / (t_sampled[1] - t_sampled[0]))
-            reconstructed_signal[i] = np.sum(sinc_values * sampled_signal)
+    def signal_interpolation(self, interpolation_method,t, t_sampled, sampled_signal):
+        if interpolation_method == "Whittaker":
+            reconstructed_signal = np.zeros_like(t)
+            # Perform Whittaker-Shannon Equation (sinc interpolation)
+            for i, t_i in enumerate(t):
+                sinc_values = np.sinc((t_i - t_sampled) / (t_sampled[1] - t_sampled[0]))
+                reconstructed_signal[i] = np.sum(sinc_values * sampled_signal)
 
-        return reconstructed_signal
-    
+            return reconstructed_signal
+        
+        elif interpolation_method == "Cubic Spline":
+            cs = CubicSpline(t_sampled, sampled_signal)
+            reconstructed_signal = cs(t)
+            return reconstructed_signal
+        
+        else:
+            reconstructed_signal = np.zeros_like(self.signalData)
+            # Zero-order hold (ZOH) reconstruction
+            for i in range(len(sampled_signal)):
+                start_index = int(t_sampled[i] / self.t_orig[-1] * len(self.t_orig))  # Calculate start index for ZOH
+                if i == len(sampled_signal) - 1:
+                    reconstructed_signal[start_index:] = sampled_signal[i]  # Last segment
+                else:
+                    end_index = int(t_sampled[i + 1] / self.t_orig[-1] * len(self.t_orig))  # Calculate end index
+                    reconstructed_signal[start_index:end_index] = sampled_signal[i]  # Hold the sampled value
 
-
-    def cubic_spline_interpolation(self, t, t_sampled, sampled_signal):
-        cs = CubicSpline(t_sampled, sampled_signal)
-        reconstructed_signal = cs(t)
-        return reconstructed_signal
-
-
-
-    def zero_order_hold(self, time_samples, sampled_signal):
-        reconstructed_signal = np.zeros_like(self.signalData)
-        # Zero-order hold (ZOH) reconstruction
-        for i in range(len(sampled_signal)):
-            start_index = int(time_samples[i] / self.t_orig[-1] * len(self.t_orig))  # Calculate start index for ZOH
-            if i == len(sampled_signal) - 1:
-                reconstructed_signal[start_index:] = sampled_signal[i]  # Last segment
-            else:
-                end_index = int(time_samples[i + 1] / self.t_orig[-1] * len(self.t_orig))  # Calculate end index
-                reconstructed_signal[start_index:end_index] = sampled_signal[i]  # Hold the sampled value
-
-        return reconstructed_signal
+            return reconstructed_signal
 
 
 
@@ -984,11 +712,11 @@ class Ui_MainWindow(QMainWindow):
 
         # Choose interpolation method and reconstruct
         if self.samplingType.currentText() == "Whittaker":
-            reconstructed_signal = self.sinc_interpolation(self.t_orig, t_sampled, sampled_signal)
+            reconstructed_signal = self.signal_interpolation("Whittaker", self.t_orig, t_sampled, sampled_signal)
         elif self.samplingType.currentText() == "Cubic Spline":
-            reconstructed_signal = self.cubic_spline_interpolation(self.t_orig, t_sampled, sampled_signal)
+            reconstructed_signal = self.signal_interpolation("Cubic Spline", self.t_orig, t_sampled, sampled_signal)
         else:
-            reconstructed_signal = self.zero_order_hold(t_sampled, sampled_signal)
+            reconstructed_signal = self.signal_interpolation("Zero Order", self.t_orig, t_sampled, sampled_signal)
 
         # Plot signals
         self.samplingGraph.plot(original_time, reconstructed_signal, pen='r', name='Reconstructed Signal')
