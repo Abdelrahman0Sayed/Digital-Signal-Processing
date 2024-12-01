@@ -381,6 +381,7 @@ def updateEqualization(self):
         self.secondGraphCanvas.draw()
 
     signalPlotting(self)
+    plotSpectrogram(self)
 
     self.audiogramWidget.updateData(self.signalTime, self.signalData, self.modifiedData)
     
@@ -547,19 +548,121 @@ def toggleFreqDomain(self):
         self.updateEqualization(self)
         self.scaleToggle.setEnabled(True)
         
-        
-def plotSpectrogram(self):
-    # Compute the spectrogram
-    frequencies, times, power_spectrogram = signal.spectrogram(self.signalData, fs=self.samplingRate)
+# Add this function to handle colorbar styling
+def style_colorbar(colorbar, ax):
+    """Apply consistent styling to spectrogram colorbars"""
+    # Get colorbar axis
+    cax = colorbar.ax
     
-    # Clear the previous plot (optional)
-    self.firstGraphAxis.clear()
+    # Style the colorbar ticks and labels
+    cax.tick_params(
+        colors=COLORS['text'],
+        labelsize=8,
+        length=3,
+        width=1
+    )
+    
+    # Style the colorbar outline
+    cax.spines['top'].set_color(COLORS['accent'])
+    cax.spines['right'].set_color(COLORS['accent']) 
+    cax.spines['bottom'].set_color(COLORS['accent'])
+    cax.spines['left'].set_color(COLORS['accent'])
+    
+    # Adjust colorbar position to prevent overlap
+    colorbar.set_label(
+        'Magnitude (dB)',
+        color=COLORS['text'],
+        fontsize=10,
+        labelpad=10
+    )
+    
+    # Make sure colorbar background is transparent
+    cax.set_facecolor('none')
 
-    # Plot the spectrogram
-    self.firstGraphAxis.pcolormesh(times, frequencies, np.log10(power_spectrogram), shading='gouraud')
-    self.firstGraphAxis.set_ylabel('Frequency [Hz]')
-    self.firstGraphAxis.set_xlabel('Time [sec]')
-    self.firstGraphCanvas.draw()  # Redraw the canvas
+# Modify the plotSpectrogram function to add colorbars:
+def plotSpectrogram(self):
+    """Plot spectrograms with proper styling and transparency"""
+    
+    if hasattr(self, 'signalData') and len(self.signalData) > 1:
+        # Clear previous plots
+        self.firstGraphAxis.clear()
+        self.secondGraphAxis.clear()
+
+        # Set transparent backgrounds
+        self.firstSpectrogramFig.patch.set_alpha(0.0)
+        self.secondSpectrogramFig.patch.set_alpha(0.0)
+        
+        # Create spectrograms
+        f1, t1, Sxx1 = signal.spectrogram(
+            self.signalData, 
+            fs=self.samplingRate,
+            window='hann',
+            nperseg=256,
+            noverlap=128,
+            scaling='density'
+        )
+        
+        f2, t2, Sxx2 = signal.spectrogram(
+            self.modifiedData,
+            fs=self.samplingRate, 
+            window='hann',
+            nperseg=256,
+            noverlap=128,
+            scaling='density'
+        )
+
+        # Convert to dB scale with proper handling of small values
+        Sxx1_db = 10 * np.log10(np.maximum(Sxx1, 1e-10))
+        Sxx2_db = 10 * np.log10(np.maximum(Sxx2, 1e-10))
+        
+        # Calculate consistent color scale
+        vmin = max(Sxx1_db.min(), -100)  # Limit minimum to -100 dB
+        vmax = max(Sxx1_db.max(), Sxx2_db.max())
+
+        # Plot spectrograms with explicit transparency
+        im1 = self.firstGraphAxis.pcolormesh(
+            t1, f1, Sxx1_db,
+            shading='gouraud',
+            cmap='viridis',
+            vmin=vmin,
+            vmax=vmax
+        )
+        
+        im2 = self.secondGraphAxis.pcolormesh(
+            t2, f2, Sxx2_db, 
+            shading='gouraud',
+            cmap='viridis',
+            vmin=vmin,
+            vmax=vmax
+        )
+
+        # Style axes and labels
+        for ax, title in [(self.firstGraphAxis, 'Original Signal'), 
+                         (self.secondGraphAxis, 'Filtered Signal')]:
+            ax.set_xlabel('Time (s)', color=COLORS['text'])
+            ax.set_ylabel('Frequency (Hz)', color=COLORS['text'])
+            ax.set_title(title, color=COLORS['text'])
+            ax.tick_params(colors=COLORS['text'])
+            
+            # Set transparent background
+            ax.patch.set_alpha(0.0)
+            
+            # Style spines
+            for spine in ax.spines.values():
+                spine.set_color(COLORS['accent'])
+
+        # Add colorbars with proper styling
+        for im, ax in [(im1, self.firstGraphAxis), (im2, self.secondGraphAxis)]:
+            cb = self.firstSpectrogramFig.colorbar(
+                im, ax=ax,
+                format='%+2.0f dB'
+            )
+            cb.ax.tick_params(colors=COLORS['text'])
+            cb.set_label('Magnitude (dB)', color=COLORS['text'])
+            
+        # Update the canvas with the new plots
+        self.firstGraphCanvas.draw()
+        self.secondGraphCanvas.draw()
 
     
 

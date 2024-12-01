@@ -712,6 +712,10 @@ class Ui_MainWindow(QMainWindow):
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
+
+
+
+
     def LoadSignalFile(self):
         print("Lets Choose a file")
         file_path = ""
@@ -772,9 +776,27 @@ class Ui_MainWindow(QMainWindow):
                 )
                 self.audiogramLayout.addWidget(self.audiogramWidget)
 
+                if not hasattr(self, 'firstGraphFigure'):
+                    self.firstGraphFigure = Figure(figsize=(5, 3), dpi=100)
+                    self.firstGraphCanvas = FigureCanvas(self.firstGraphFigure)
+                    self.firstGraphAxis = self.firstGraphFigure.add_subplot(111)
+
+                if not hasattr(self, 'secondGraphFigure'):
+                    self.secondGraphFigure = Figure(figsize=(5, 3), dpi=100)
+                    self.secondGraphCanvas = FigureCanvas(self.secondGraphFigure)
+                    self.secondGraphAxis = self.secondGraphFigure.add_subplot(111)
+
                 # Update UI
-                signalPlotting(self) 
+                signalPlotting(self)
                 plotSpectrogram(self)
+                
+                # Add figures to layout if not already added
+                if self.firstGraphCanvas.parent() is None:
+                    self.verticalGraphs.addWidget(self.firstGraphCanvas)
+                if self.secondGraphCanvas.parent() is None:
+                    self.verticalGraphs.addWidget(self.secondGraphCanvas)
+
+
                 updateEqualization(self)
                 changeMode(self, self.current_mode)
                 
@@ -1332,94 +1354,45 @@ class Ui_MainWindow(QMainWindow):
 
 
         
-        # Create Spectrogram Layout (can be toggled)
         self.spectrogramLayout = QtWidgets.QHBoxLayout()
         self.spectrogramLayout.setObjectName("spectrogramLayout")
         self.spectrogramLayout.setSpacing(20)
         self.spectrogramLayout.setContentsMargins(10, 10, 10, 10)
 
+        # Create containers for each spectrogram group
+        self.firstSpectrogramContainer = QtWidgets.QWidget()
+        self.secondSpectrogramContainer = QtWidgets.QWidget()
+        self.firstSpectrogramLayout = QtWidgets.QHBoxLayout(self.firstSpectrogramContainer)
+        self.secondSpectrogramLayout = QtWidgets.QHBoxLayout(self.secondSpectrogramContainer)
 
-
-
-        # First Spectrogram
-        self.firstSpectrogramFig = Figure(figsize=(10, 10))
-        self.firstSpectrogramFig.patch.set_alpha(0.0)  # Make figure background transparent
+        # Initialize spectrograms with proper dimensions and settings
+        self.firstSpectrogramFig = Figure(figsize=(8, 4))  # Changed aspect ratio
+        self.firstSpectrogramFig.patch.set_alpha(0.0)
         self.firstGraphCanvas = FigureCanvas(self.firstSpectrogramFig)
         self.firstGraphCanvas.setFixedHeight(200)
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
-        self.firstGraphAxis.patch.set_alpha(0.0)  # Make plot background transparent
-        self.firstGraphAxis.patch.set_facecolor('none')
-        
-        # Second Spectrogram
-        self.secondSpectrogramFig = Figure(figsize=(10, 10))
-        self.secondSpectrogramFig.patch.set_alpha(0.0)  # Make figure background transparent
+        self.firstGraphAxis.set_facecolor('none')
+
+        self.secondSpectrogramFig = Figure(figsize=(8, 4))  # Changed aspect ratio
+        self.secondSpectrogramFig.patch.set_alpha(0.0)
         self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
         self.secondGraphCanvas.setFixedHeight(200)
         self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
-        self.secondGraphAxis.patch.set_alpha(0.0)  # Make plot background transparent
-        self.secondGraphAxis.patch.set_facecolor('none')
+        self.secondGraphAxis.set_facecolor('none')
 
+        # Create spectrogram layout with fixed size
+        self.spectrogramLayout = QtWidgets.QHBoxLayout()
+        self.spectrogramLayout.addWidget(self.firstGraphCanvas, stretch=1)
+        self.spectrogramLayout.addWidget(self.secondGraphCanvas, stretch=1)
         
-
-        # Configure spectrogram plots with enhanced styling
-        for ax in [self.firstGraphAxis, self.secondGraphAxis]:
-            ax.set_facecolor('none')  # Transparent background
-            ax.tick_params(
-                colors=STYLES['SPECTROGRAM_PLOT']['text_color'],
-                labelsize=STYLES['SPECTROGRAM_PLOT']['tick_size']
-            )
-            ax.grid(True, 
-                    color=STYLES['SPECTROGRAM_PLOT']['grid_color'],
-                    linestyle='--',
-                    alpha=0.5)
-            
-            # Style labels and title
-            ax.xaxis.label.set_color(STYLES['SPECTROGRAM_PLOT']['text_color'])
-            ax.yaxis.label.set_color(STYLES['SPECTROGRAM_PLOT']['text_color'])
-            ax.title.set_color(STYLES['SPECTROGRAM_PLOT']['text_color'])
-            ax.title.set_size(STYLES['SPECTROGRAM_PLOT']['title_size'])
-            
-            # Style spines
-            for spine in ax.spines.values():
-                spine.set_color(STYLES['SPECTROGRAM_PLOT']['spine_color'])
-                spine.set_linewidth(2)
-
-        # Create container for spectrograms with matching background
+        # Create container with fixed size
         self.spectrogramContainer = QtWidgets.QWidget(self.mainBodyframe)
         self.spectrogramContainer.setFixedHeight(250)
         self.spectrogramContainer.setStyleSheet(STYLES['SPECTROGRAM'])
-        self.spectrogramContainer.setContentsMargins(20, 20, 20, 20)
-        self.spectrogramLayout.addWidget(self.firstGraphCanvas)
-        self.spectrogramLayout.addWidget(self.secondGraphCanvas)
         self.spectrogramContainer.setLayout(self.spectrogramLayout)
+
+        # Add to main layout
         self.verticalGraphs.addWidget(self.spectrogramContainer)
-
-
-
-        # Update stretch factors
-        self.verticalGraphs.setStretch(0, 1)  # Time domain graphs
-        self.verticalGraphs.setStretch(1, 1)  # First separator
-        self.verticalGraphs.setStretch(2, 1)  # Audiogram
-        self.verticalGraphs.setStretch(3, 1)  # Second separator
-        self.verticalGraphs.setStretch(4, 1)  # Spectrograms
-
-        # Style the first spectrogram
-        self.firstGraphAxis.set_facecolor(COLORS['background'])
-        self.firstSpectrogramFig.patch.set_facecolor(COLORS['secondary'])
-        self.firstGraphAxis.tick_params(colors=COLORS['text'])
-        self.firstGraphAxis.xaxis.label.set_color(COLORS['text'])
-        self.firstGraphAxis.yaxis.label.set_color(COLORS['text'])
-        for spine in self.firstGraphAxis.spines.values():
-            spine.set_color(COLORS['accent'])
-
-        # Style the second spectrogram
-        self.secondGraphAxis.set_facecolor(COLORS['background'])
-        self.secondSpectrogramFig.patch.set_facecolor(COLORS['secondary'])
-        self.secondGraphAxis.tick_params(colors=COLORS['text'])
-        self.secondGraphAxis.xaxis.label.set_color(COLORS['text'])
-        self.secondGraphAxis.yaxis.label.set_color(COLORS['text'])
-        for spine in self.secondGraphAxis.spines.values():
-            spine.set_color(COLORS['accent'])
 
 
 
