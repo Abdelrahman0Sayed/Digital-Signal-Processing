@@ -14,6 +14,8 @@ from collections import deque
 from dataclasses import dataclass
 from typing import List, Any
 import json
+from scipy.signal import butter, lfilter
+
 
 @dataclass
 class Command:
@@ -23,8 +25,27 @@ class Command:
     indices: List[int]
     signal_names: List[str]  # Add this field
 
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs  # Nyquist Frequency
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+
+
+
+
+def lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
+
+
 def generate_signal(self, signal_type, amplitude, frequency, phase_shift, duration=4, sample_rate=7000):
-    t = np.linspace(0, duration, int(30000), endpoint=False)
+    t = np.linspace(0, duration, int(15000), endpoint=False)
 
     phase_shift_rad = np.deg2rad(phase_shift)
     if signal_type == "Sin":
@@ -32,8 +53,15 @@ def generate_signal(self, signal_type, amplitude, frequency, phase_shift, durati
     elif signal_type == "Cos":
         return amplitude * np.cos(2 * np.pi * frequency * t + phase_shift_rad)
 
+
+
+
 def generate_default_name(self, signal_type, frequency, amplitude):
     return f"{signal_type}_{frequency}Hz_{amplitude}A"
+
+
+
+
 
 def add_signal(self, add_command_bool= False):
     signal_type = self.comboBox.currentText()
@@ -133,10 +161,18 @@ def edit_signal(self, update_on_sampling=False):
         self.selected_signal_index = -1
         update_plot(self, update_on_sampling)
 
+
+
+
 def add_command(self, command: Command):
     self.undo_stack.append(command)
     self.redo_stack.clear()  # Clear redo stack when new action is performed
     update_undo_redo_buttons(self)
+
+
+
+
+
 
 def undo(self):
     if not self.undo_stack:
@@ -164,6 +200,10 @@ def undo(self):
     if not self.signals:
         self.selected_signal_index = -1
         self.addComponent.setText("Add Component")
+
+
+
+
 
 def redo(self):
     if not self.redo_stack:
@@ -209,6 +249,10 @@ def update_undo_redo_buttons(self):
         self.button_styles['enabled'] if has_redo 
         else self.button_styles['disabled']
     )
+
+
+
+
 
 def delete_signal(self, add_command_bool= False):
     selected_items = self.listWidget.selectedItems()
@@ -263,6 +307,10 @@ def delete_signal(self, add_command_bool= False):
     # Update plot
     update_plot(self, update_on_sampling=not add_command_bool)
 
+
+
+
+
 def select_signal(self, update_on_sampling=False):
     self.selected_signal_index = self.listWidget.currentRow()
     if self.selected_signal_index >= 0:
@@ -288,6 +336,10 @@ def handle_component_button(self, update_on_sampling=False):
         add_signal(self, not update_on_sampling)
     else:
         edit_signal(self, update_on_sampling)
+
+
+
+
 
 def update_signal_real_time(self, input_box):
     if self.selected_signal_index >= 0:
@@ -324,10 +376,12 @@ def update_signal_real_time(self, input_box):
         except ValueError:
             pass  # Handle incomplete/invalid input gracefully
 
+
+
 def update_plot(self, update_on_sampling=False, not_real_time=True):
     self.signalViewer.clear()
     if update_on_sampling:
-        self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
+        self.t_orig = np.linspace(0, 4, 15000, endpoint=False)
 
 
         if len(self.signals) == 0:
@@ -336,7 +390,8 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
             self.frequencyDomainGraph.clear()
             
             return
-    
+
+
     if self.signals:
 
         combined_signal = np.sum(self.signals, axis=0)
@@ -378,7 +433,7 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
         if update_on_sampling and self.signalData is not None:
             # Generate time array
             self.frequencyDomainGraph.setXRange(-6, 6 )
-            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
+            self.t_orig = np.linspace(0, 4, 15000, endpoint=False)
 
             
             # Generate and store noisy signal
@@ -407,6 +462,9 @@ def update_plot(self, update_on_sampling=False, not_real_time=True):
                             name='Sampled Points')   
 
 
+
+
+
 def on_parameter_changed(self):
     # Get current parameter values
     if self.selected_signal_index == -1:
@@ -426,6 +484,9 @@ def on_parameter_changed(self):
         
         self.is_previewing = True
         update_plot(self)
+
+
+
 
 def start_sampling(self):
     if not self.signals:
@@ -465,11 +526,18 @@ def save_signals_to_json(signals, signal_properties):
     with open('signals.json', 'w') as file:
         json.dump(data, file)
 
+
+
+
+
 def load_signals_from_json():
     # Load signals and properties from JSON
     with open('signals.json', 'r') as file:
         data = json.load(file)
     return data['signals'], data['properties']
+
+
+
 
 def open_examples_dialog(self, add_command_bool= False):
     dialog = QDialog(self)
@@ -485,6 +553,8 @@ def open_examples_dialog(self, add_command_bool= False):
 
     dialog.setLayout(layout)
     dialog.exec_()
+
+
 
 def select_example(self, example_name, dialog, add_command_bool= False):
     signal = None  # Initialize a signal variable

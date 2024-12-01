@@ -178,6 +178,7 @@ class Ui_MainWindow(QMainWindow):
         # add the signals to the list widget
         self.signalData = None
         self.copyData = None
+        self.combined_signal = np.array([])  # Initialize as an empty array
         self.f_max = 0
         self.selected_signal_index = -1
         self.timer = QTimer()
@@ -185,7 +186,7 @@ class Ui_MainWindow(QMainWindow):
         self.timer.start(100)
 
         self.loadedSignals = []
-        self.samplingFrequency = 0
+        self.samplingFrequency = 10
         self.samplingFactor= 0
         
         self.frequencyShape = "Pulses"
@@ -511,7 +512,7 @@ class Ui_MainWindow(QMainWindow):
         # Slider for changing Hertz
         self.sampling_frequency = QSlider(Qt.Horizontal)
         self.sampling_frequency.setMinimum(0)           
-        self.sampling_frequency.setValue(0) 
+        self.sampling_frequency.setValue(10) 
         self.sampling_frequency.setTickInterval(1)       
         self.sampling_frequency.setSingleStep(1)        
         self.sampling_frequency.setTickPosition(QSlider.TicksBelow)
@@ -780,7 +781,7 @@ class Ui_MainWindow(QMainWindow):
         
         # Update plots if we have the required attributes
         if hasattr(self, 't_orig') and hasattr(self, 'signalData'):
-            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
+            self.t_orig = np.linspace(0, 4, 15000, endpoint=False)
             snr_db = self.snr_slider.value()
             self.noisy_signal = self.add_noise(self.signalData, snr_db)
             self.startSampling(self.t_orig, self.noisy_signal)
@@ -840,7 +841,7 @@ class Ui_MainWindow(QMainWindow):
                 yMax=(max(self.signalData)) + 0.5
             )
             
-            self.t_orig = np.linspace(0, 4, 30000, endpoint=False)
+            self.t_orig = np.linspace(0, 4, 15000, endpoint=False)
             
             # Generate and store noisy signal
             snr_db = self.snr_slider.value()
@@ -991,8 +992,8 @@ class Ui_MainWindow(QMainWindow):
 
         # Plot signals
         self.samplingGraph.plot(original_time, reconstructed_signal, pen='r', name='Reconstructed Signal')
-        self.samplingGraph.setXRange(0, 0.5)
-        self.signalViewer.setXRange(0, 0.5)
+        self.samplingGraph.setXRange(0, 0.05)
+        self.signalViewer.setXRange(0, 0.05)
 
         # Plot sample points with noise
         scatter = pg.ScatterPlotItem(t_sampled, sampled_signal, size=4, pen=pg.mkPen(None), 

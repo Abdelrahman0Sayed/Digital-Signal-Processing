@@ -8,8 +8,8 @@ f3 = 50  # Frequency of the third sine wave (Hz)
 A1 = 0.5  # Amplitude of the first sine wave
 A2 = 1  # Amplitude of the second sine wave
 A3 = 0.2  # Amplitude of the third sine wave
-T = 1  # Total duration of the signal (seconds)
-num_samples = 30000  # Number of samples to generate
+T = 4  # Total duration of the signal (seconds)
+num_samples = 15000  # Number of samples to generate
 
 # Create the time array
 t_orig = np.linspace(0, T, num_samples, endpoint=False)
