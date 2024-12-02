@@ -20,6 +20,13 @@ from scipy import signal
 import time
 from audiogram import Audiogram
 
+SPECTROGRAM_CONFIG = {
+    'cmap': 'viridis',
+    'aspect': 'auto',
+    'interpolation': 'gaussian',
+    'vmin': -80,  # Minimum dB value
+    'vmax': 0,    # Maximum dB value
+}
 
 COLORS = {
     'background': '#1E1E2E',  # Dark background
@@ -121,8 +128,8 @@ STYLES['SLIDER_CONTAINER'] = f"""
     QWidget {{
         background-color: {COLORS['secondary']};
         border-radius: 10px;
-        padding: 15px;
-        margin: 5px;
+        padding: 0px;
+        margin: 0px;
     }}
 """
 
@@ -133,7 +140,7 @@ STYLES['SLIDER_LABEL'] = f"""
         font-size: 12px;
         font-weight: bold;
         margin-bottom: 5px;
-        padding: 5px 0;
+        padding: 0px 0;
     }}
 """
 
@@ -168,27 +175,158 @@ STYLES['SLIDER'] = f"""
     }}
 """
 
+STYLES['SPECTROGRAM'] = f"""
+    QWidget {{
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;  # Increased padding
+        background-color: rgba(26, 27, 30, 0.8);
+        backdrop-filter: blur(10px);
+    }}
+"""
+
+STYLES['SLIDERS_CONTAINER'] = f"""
+    QWidget {{
+        background-color: {COLORS['secondary']};
+        border: 2px solid {COLORS['accent']};
+        border-radius: 20px;
+        padding: 15px;
+        margin: 10px 0px;
+    }}
+"""
+
+STYLES['SLIDER'] = f"""
+    QSlider {{
+        height: 50px;
+        margin: 0px;
+    }}
+    
+    QSlider::groove:horizontal {{
+        border: none;
+        height: 4px;
+        background: {COLORS['background']};
+        border-radius: 2px;
+        margin: 0px;
+    }}
+    
+    QSlider::handle:horizontal {{
+        background: {COLORS['accent']};
+        border: 2px solid {COLORS['accent']};
+        width: 16px;
+        height: 16px;
+        margin: -6px 0;
+        border-radius: 10px;
+        transition: background-color 0.2s;
+    }}
+    
+    QSlider::handle:horizontal:hover {{
+        background: {COLORS['button_hover']};
+        border-color: {COLORS['button_hover']};
+        transform: scale(1.1);
+    }}
+    
+    QSlider::sub-page:horizontal {{
+        background: {COLORS['accent']};
+        border-radius: 2px;
+    }}
+"""
+
+STYLES['SLIDER_LABEL'] = f"""
+    QLabel {{
+        color: {COLORS['text']};
+        font-size: 13px;
+        font-weight: bold;
+        padding: 5px;
+    }}
+"""
+
+STYLES['SLIDER_VALUE'] = f"""
+    QLabel {{
+        color: {COLORS['accent']};
+        font-size: 12px;
+        font-weight: bold;
+        padding: 2px 0px;
+        background: rgba(114, 137, 218, 0.1);
+        border-radius: 10px;
+    }}
+"""
+
 # Function to create sliders based on mode
 def createSliders(self, ranges):
-    # Clear existing sliders
-    for i in reversed(range(self.sliderWindow.slidersLayout.count())): 
-        self.sliderWindow.slidersLayout.itemAt(i).widget().setParent(None)
-    
-    self.sliders = []
-    self.sliderLabels = []
+    # Clear any existing sliders
+    for slider in self.sliders:
+        slider.deleteLater()
+    self.sliders.clear()
     
     # Create new sliders
-    for range_name, freq_ranges in ranges.items():
-        for freq_range in freq_ranges:
-            slider = self.sliderWindow.addSlider(
-                f"{range_name} ({freq_range[0]}-{freq_range[1]}Hz)",
-                0, 20 , 10
-            )
-            self.sliders.append(slider)
-            self.sliderLabels.append(range_name)
-            slider.valueChanged.connect(lambda: updateEqualization(self))
+    for label, freq_range in ranges.items():
+        min_val = -20
+        max_val = 20
+        slider = addSlider(self,label, min_val, max_val, 0)
+        slider.valueChanged.connect(lambda val: updateEqualization(self))
+        self.sliders.append(slider)
 
-
+def addSlider(self, label, min_val, max_val, value):
+    # Create container for the entire slider group
+    sliderWidget = QtWidgets.QWidget()
+    sliderLayout = QtWidgets.QVBoxLayout(sliderWidget)
+    sliderLayout.setSpacing(2)
+    sliderLayout.setContentsMargins(5, 5, 5, 10)
+    
+    # Create header container
+    headerContainer = QtWidgets.QWidget()
+    headerContainer.setStyleSheet(f"background: transparent;")
+    headerLayout = QtWidgets.QHBoxLayout(headerContainer)
+    headerLayout.setContentsMargins(0, 0, 0, 0)
+    
+    # Label
+    labelWidget = QtWidgets.QLabel(label)
+    labelWidget.setStyleSheet(STYLES['SLIDER_LABEL'])
+    
+    # Value label with modern pill shape
+    valueLabel = QtWidgets.QLabel(f"{value} dB")
+    valueLabel.setStyleSheet(STYLES['SLIDER_VALUE'])
+    valueLabel.setMinimumWidth(60)
+    valueLabel.setAlignment(QtCore.Qt.AlignCenter)
+    
+    # Add labels to header
+    headerLayout.addWidget(labelWidget)
+    headerLayout.addStretch()
+    headerLayout.addWidget(valueLabel)
+    
+    # Create and style slider
+    slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+    slider.setMinimum(min_val)
+    slider.setMaximum(max_val)
+    slider.setValue(value)
+    slider.setStyleSheet(STYLES['SLIDER'])
+    
+    # Add tick marks
+    slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+    slider.setTickInterval(10)
+    
+    # Update value label when slider moves
+    slider.valueChanged.connect(lambda v: valueLabel.setText(f"{v} dB"))
+    
+    # Add widgets to layout
+    sliderLayout.addWidget(headerContainer)
+    sliderLayout.addWidget(slider)
+    
+    # # Add separator line
+    # if label != list(self.instrument_ranges.keys())[-1]:  # Don't add line after last slider
+    #     line = QtWidgets.QFrame()
+    #     line.setFrameShape(QtWidgets.QFrame.HLine)
+    #     line.setStyleSheet(f"""
+    #         background-color: {COLORS['accent']}33;
+    #         border: none;
+    #         height: 1px;
+    #         margin: 5px 0px;
+    #     """)
+    #     sliderLayout.addWidget(line)
+    
+    # Add to container
+    self.slidersInnerLayout.addWidget(sliderWidget)
+    return slider
 
 def changeMode(ui, mode):
     print(f"Changing mode to: {mode}")
@@ -236,44 +374,23 @@ def changeMode(ui, mode):
     updateEqualization(ui)
 
 
-
-
-def createSlider(self, label_text):
-    # Create container widget
-    container = QtWidgets.QWidget()
-    container.setFixedWidth(100)  # Set fixed width for consistency
-    container.setStyleSheet(STYLES['SLIDER_CONTAINER'])
-    container_layout = QtWidgets.QVBoxLayout(container)
-    container_layout.setContentsMargins(5, 10, 5, 10)
+def createSliders(self, ranges):
+    # First, clear all existing sliders from the layout and delete them
+    while self.slidersInnerLayout.count():
+        item = self.slidersInnerLayout.takeAt(0)
+        if item.widget():
+            item.widget().deleteLater()
     
-    # Create slider first
-    slider = QtWidgets.QSlider(QtCore.Qt.Vertical)
-    slider.setMinimum(0)
-    slider.setMaximum(200)
-    slider.setValue(100)
-    slider.setFixedHeight(150)
-    slider.setStyleSheet(STYLES['SLIDER'])
+    # Clear the sliders list
+    self.sliders.clear()
     
-    # Create label
-    label = QtWidgets.QLabel(label_text)
-    label.setStyleSheet(STYLES['SLIDER_LABEL'])
-    label.setAlignment(QtCore.Qt.AlignCenter)
-    label.setWordWrap(True)  # Allow text wrapping
-    
-    # Add widgets to container
-    container_layout.addWidget(slider, alignment=QtCore.Qt.AlignHCenter)
-    container_layout.addWidget(label, alignment=QtCore.Qt.AlignHCenter)
-    container_layout.setStretch(0, 2)  # Give slider more vertical space
-    container_layout.setStretch(1, 1)  # Give label less vertical space
-    
-    # Store references and connect signal
-    self.sliders.append(slider)
-    self.sliderLabels.append(label)
-    slider.valueChanged.connect(lambda: updateEqualization(self))
-    
-    # Add to layout
-    self.horizontalLayout_5.addWidget(container)
-    return container
+    # Create new sliders
+    for label, freq_range in ranges.items():
+        min_val = -20
+        max_val = 20
+        slider = addSlider(self, label, min_val, max_val, 0)
+        slider.valueChanged.connect(lambda val: updateEqualization(self))
+        self.sliders.append(slider)
 
 def updateEqualization(self):
     # Track if audio is currently playing
@@ -579,90 +696,81 @@ def style_colorbar(colorbar, ax):
     # Make sure colorbar background is transparent
     cax.set_facecolor('none')
 
-# Modify the plotSpectrogram function to add colorbars:
 def plotSpectrogram(self):
-    """Plot spectrograms with proper styling and transparency"""
+    if len(self.signalData) <= 1:
+        return
+        
+    # Clear and reset figures
+    self.firstSpectrogramFig.clear()
+    self.secondSpectrogramFig.clear()
     
-    if hasattr(self, 'signalData') and len(self.signalData) > 1:
-        # Clear previous plots
-        self.firstGraphAxis.clear()
-        self.secondGraphAxis.clear()
-
-        # Set transparent backgrounds
-        self.firstSpectrogramFig.patch.set_alpha(0.0)
-        self.secondSpectrogramFig.patch.set_alpha(0.0)
-        
-        # Create spectrograms
-        f1, t1, Sxx1 = signal.spectrogram(
-            self.signalData, 
-            fs=self.samplingRate,
-            window='hann',
-            nperseg=256,
-            noverlap=128,
-            scaling='density'
-        )
-        
-        f2, t2, Sxx2 = signal.spectrogram(
-            self.modifiedData,
-            fs=self.samplingRate, 
-            window='hann',
-            nperseg=256,
-            noverlap=128,
-            scaling='density'
-        )
-
-        # Convert to dB scale with proper handling of small values
-        Sxx1_db = 10 * np.log10(np.maximum(Sxx1, 1e-10))
-        Sxx2_db = 10 * np.log10(np.maximum(Sxx2, 1e-10))
-        
-        # Calculate consistent color scale
-        vmin = max(Sxx1_db.min(), -100)  # Limit minimum to -100 dB
-        vmax = max(Sxx1_db.max(), Sxx2_db.max())
-
-        # Plot spectrograms with explicit transparency
-        im1 = self.firstGraphAxis.pcolormesh(
-            t1, f1, Sxx1_db,
-            shading='gouraud',
-            cmap='viridis',
-            vmin=vmin,
-            vmax=vmax
-        )
-        
-        im2 = self.secondGraphAxis.pcolormesh(
-            t2, f2, Sxx2_db, 
-            shading='gouraud',
-            cmap='viridis',
-            vmin=vmin,
-            vmax=vmax
-        )
-
-        # Style axes and labels
-        for ax, title in [(self.firstGraphAxis, 'Original Signal'), 
-                         (self.secondGraphAxis, 'Filtered Signal')]:
-            ax.set_xlabel('Time (s)', color=COLORS['text'])
-            ax.set_ylabel('Frequency (Hz)', color=COLORS['text'])
-            ax.set_title(title, color=COLORS['text'])
-            ax.tick_params(colors=COLORS['text'])
-            
-            # Set transparent background
-            ax.patch.set_alpha(0.0)
-            
-            # Style spines
-            for spine in ax.spines.values():
-                spine.set_color(COLORS['accent'])
-
-        # Add colorbars with proper styling
-        for im, ax in [(im1, self.firstGraphAxis), (im2, self.secondGraphAxis)]:
-            cb = self.firstSpectrogramFig.colorbar(
-                im, ax=ax,
-                format='%+2.0f dB'
-            )
-            cb.ax.tick_params(colors=COLORS['text'])
-            cb.set_label('Magnitude (dB)', color=COLORS['text'])
-            
-        # Update the canvas with the new plots
-        self.firstGraphCanvas.draw()
-        self.secondGraphCanvas.draw()
+    # Create new subplots with proper spacing
+    self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
+    self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
+    
+    # Calculate spectrograms
+    f1, t1, Sxx1 = signal.spectrogram(
+        self.signalData, 
+        fs=self.samplingRate,
+        nperseg=256,
+        noverlap=128,
+        mode='magnitude'
+    )
+    
+    f2, t2, Sxx2 = signal.spectrogram(
+        self.modifiedData, 
+        fs=self.samplingRate,
+        nperseg=256,
+        noverlap=128,
+        mode='magnitude'
+    )
+    
+    # Plot spectrograms
+    im1 = self.firstGraphAxis.pcolormesh(
+        t1, f1, 10 * np.log10(Sxx1),
+        shading='gouraud',
+        cmap='viridis'
+    )
+    
+    im2 = self.secondGraphAxis.pcolormesh(
+        t2, f2, 10 * np.log10(Sxx2),
+        shading='gouraud',
+        cmap='viridis'
+    )
+    
+    # Style axes
+    for ax in [self.firstGraphAxis, self.secondGraphAxis]:
+        ax.set_facecolor('none')
+        ax.grid(True, alpha=0.2, color='white')
+        ax.tick_params(colors='white')
+        for spine in ax.spines.values():
+            spine.set_color('white')
+    
+    # Add labels and titles with white text
+    self.firstGraphAxis.set_ylabel('Frequency [Hz]', color='white')
+    self.firstGraphAxis.set_xlabel('Time [sec]', color='white')
+    self.firstGraphAxis.set_title('Original Signal Spectrogram', color='white')
+    
+    self.secondGraphAxis.set_ylabel('Frequency [Hz]', color='white')
+    self.secondGraphAxis.set_xlabel('Time [sec]', color='white')
+    self.secondGraphAxis.set_title('Filtered Signal Spectrogram', color='white')
+    
+    # Add colorbars
+    cbar1 = self.firstSpectrogramFig.colorbar(im1)
+    cbar2 = self.secondSpectrogramFig.colorbar(im2)
+    
+    # Style colorbars
+    for cbar in [cbar1, cbar2]:
+        cbar.ax.yaxis.set_tick_params(colors='white')
+        cbar.set_label('Power [dB]', color='white')
+    
+    # Update layouts
+    self.firstSpectrogramFig.tight_layout()
+    self.secondSpectrogramFig.tight_layout()
+    
+    # Draw canvases
+    self.firstGraphCanvas.draw()
+    self.secondGraphCanvas.draw()
 
     
 
