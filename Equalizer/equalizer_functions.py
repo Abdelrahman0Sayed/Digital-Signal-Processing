@@ -251,21 +251,6 @@ STYLES['SLIDER_VALUE'] = f"""
     }}
 """
 
-# Function to create sliders based on mode
-def createSliders(self, ranges):
-    # Clear any existing sliders
-    for slider in self.sliders:
-        slider.deleteLater()
-    self.sliders.clear()
-    
-    # Create new sliders
-    for label, freq_range in ranges.items():
-        min_val = -20
-        max_val = 20
-        slider = addSlider(self,label, min_val, max_val, 0)
-        slider.valueChanged.connect(lambda val: updateEqualization(self))
-        self.sliders.append(slider)
-
 def addSlider(self, label, min_val, max_val, value):
     # Create container for the entire slider group
     sliderWidget = QtWidgets.QWidget()
@@ -311,20 +296,7 @@ def addSlider(self, label, min_val, max_val, value):
     # Add widgets to layout
     sliderLayout.addWidget(headerContainer)
     sliderLayout.addWidget(slider)
-    
-    # # Add separator line
-    # if label != list(self.instrument_ranges.keys())[-1]:  # Don't add line after last slider
-    #     line = QtWidgets.QFrame()
-    #     line.setFrameShape(QtWidgets.QFrame.HLine)
-    #     line.setStyleSheet(f"""
-    #         background-color: {COLORS['accent']}33;
-    #         border: none;
-    #         height: 1px;
-    #         margin: 5px 0px;
-    #     """)
-    #     sliderLayout.addWidget(line)
-    
-    # Add to container
+
     self.slidersInnerLayout.addWidget(sliderWidget)
     return slider
 
