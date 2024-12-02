@@ -1,4 +1,4 @@
-# main.py
+from io import BytesIO
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -6,6 +6,15 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QMenu, QAction, QToolTip
 from functools import partial
+from Image_functions import loadImage, imageFourierTransform, displayFrequencyComponent
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5 import QtCore, QtGui, QtWidgets
+
 
 
 # Define color palette
@@ -21,7 +30,7 @@ COLORS = {
 # Add to COLORS dictionary
 COLORS.update({
     'hover': '#404040',
-    'success': '#4CAF50',
+    'success': '#4CAF50', 
     'warning': '#FFA726',
     'info': '#29B6F6'
 })
@@ -253,6 +262,14 @@ class ModernWindow(QMainWindow):
         
         left_layout.addLayout(viewers_grid)
         
+
+
+
+
+
+
+
+
         # Right panel for output and controls
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
@@ -461,6 +478,9 @@ class ModernWindow(QMainWindow):
             self.restore_state(state)
             self.statusBar.showMessage("Redo successful", 2000)
         
+
+
+
 class ImageViewerWidget(QFrame):
     weightChanged = pyqtSignal(float, str)
     
@@ -507,8 +527,6 @@ class ImageViewerWidget(QFrame):
         else:
             # Dual display for input viewers
             displays_layout = QHBoxLayout()
-
-            # Original image section (left)
             original_section = QVBoxLayout()
             original_label = QLabel("Original Image")
             self.originalImageLabel = ImageDisplay()
@@ -521,6 +539,7 @@ class ImageViewerWidget(QFrame):
                     border-radius: 4px;
                 }
             """)
+            self.originalImageLabel.on_double_click = self.apply_effect  # Connect double-click event
             original_section.addWidget(original_label)
             original_section.addWidget(self.originalImageLabel)
             displays_layout.addLayout(original_section)
@@ -534,6 +553,8 @@ class ImageViewerWidget(QFrame):
                 'FT Real',
                 'FT Imaginary'
             ])
+            # If the Data you want to plot is not the magnitude, you can change the default value here
+            self.component_selector.currentIndexChanged.connect(lambda: displayFrequencyComponent(self, self.component_selector.currentText()))
             self.component_selector.setToolTip("Select which Fourier component to view")
             ft_section.addWidget(self.component_selector)
 
@@ -590,11 +611,24 @@ class ImageViewerWidget(QFrame):
         self.progress.hide()
         layout.addWidget(self.progress)
 
-        # Add output port selector (for input viewers)
-        # if not self.is_output:
-        #     port_selector = QComboBox()
-        #     port_selector.addItems(["Output 1", "Output 2"])
-        #     header_layout.addWidget(port_selector)
+
+
+    def apply_effect(self):
+        # Load the Data and Convert it to QImage
+        self.qimage, self.imageData = loadImage()
+        pixmapImage = QPixmap.fromImage(self.qimage)
+        label_height = int(self.originalImageLabel.height())
+        label_width = int(self.originalImageLabel.width())
+
+        pixmapImage = pixmapImage.scaled(label_width, label_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio)
+        self.originalImageLabel.setPixmap(pixmapImage)
+
+        # Apply Fourier Transform
+        imageFourierTransform(self, self.imageData)
+        displayFrequencyComponent(self, "FT Magnitude")
+
+
+
 
     def update_weight_labels(self, mode):
         if mode == "Magnitude/Phase":
@@ -604,10 +638,16 @@ class ImageViewerWidget(QFrame):
             self.weight1_label.setText("Real:")
             self.weight2_label.setText("Imaginary:")
 
+
+
+
     def _setup_animations(self):
         self.highlight_animation = QPropertyAnimation(self, b"styleSheet")
         self.highlight_animation.setDuration(300)
         self.highlight_animation.setEasingCurve(QEasingCurve.InOutQuad)
+
+
+
 
     def highlight(self):
         self.highlight_animation.setStartValue(f"""
@@ -624,6 +664,9 @@ class ImageViewerWidget(QFrame):
         """)
         self.highlight_animation.start()
 
+
+
+
     def reset(self):
         self.image = None
         self.ft_components = None
@@ -634,6 +677,9 @@ class ImageViewerWidget(QFrame):
             self.ftComponentLabel.clear()
             self.weight1_slider.setValue(50)
             self.weight2_slider.setValue(50)
+
+
+
 
     def _setup_zoom_controls(self):
         zoom_layout = QHBoxLayout()
@@ -655,10 +701,16 @@ class ImageViewerWidget(QFrame):
         
         self.layout().addLayout(zoom_layout)
 
+
+
+
     def adjust_zoom(self, delta):
         self.zoom_level = max(0.1, min(5.0, self.zoom_level + delta))
         self.zoom_label.setText(f"{int(self.zoom_level * 100)}%")
         self.update_display()
+
+
+
 
     def wheelEvent(self, event):
         if event.modifiers() == Qt.ControlModifier:
@@ -668,11 +720,22 @@ class ImageViewerWidget(QFrame):
         else:
             super().wheelEvent(event)
 
+
+
     def update_display(self):
         if self.image:
             scaled_size = self.image.size() * self.zoom_level
             self.originalImageLabel.setPixmap(self.image.scaled(
                 scaled_size.toSize(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+
+
+
+
+
+
+
+
 
 class ImageDisplay(QLabel):
     # Add custom signal
@@ -681,7 +744,6 @@ class ImageDisplay(QLabel):
     def __init__(self):
         super().__init__()
         self.setMouseTracking(True)
-        self.last_pos = None
         self.setToolTip("Drag & Drop images here\nDrag mouse to adjust brightness/contrast")
         self.loading_spinner = None
         self._setup_loading_spinner()
@@ -689,7 +751,20 @@ class ImageDisplay(QLabel):
         self.drop_indicator = QLabel(self)
         self.drop_indicator.hide()
         self._setup_drop_indicator()
-        
+        self.last_pos = None
+        self.image = None
+        self.brightness = 0
+        self.contrast = 1
+    
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.on_double_click()
+
+
+    def on_double_click(self):
+        pass
+
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.last_pos = event.pos()
@@ -701,20 +776,52 @@ class ImageDisplay(QLabel):
             # Horizontal movement controls contrast
             delta_x = event.pos().x() - self.last_pos.x()
             
-            self.parent().adjust_brightness_contrast(delta_y/100, delta_x/100)
+            self.adjust_brightness_contrast(delta_y/100, delta_x/100)
             self.last_pos = event.pos()
+    
+    
+    def adjust_brightness_contrast(self, brightness_delta, contrast_delta):
+        self.brightness += brightness_delta
+        self.contrast += contrast_delta
+
+        # Ensure brightness and contrast are within valid ranges
+        self.brightness = max(min(self.brightness, 1), -1)
+        self.contrast = max(min(self.contrast, 3), 0.1)
+
+        # Apply brightness and contrast adjustments to the image
+        if self.parent().imageData is not None:
+            # Change Image Data Depends On the Brightness and Contrast
+            self.parent().imageData = self.parent().imageData * self.contrast + self.brightness
+            self.parent().imageData = np.clip(self.parent().imageData, 0, 255).astype(np.uint8)
             
+            height, width, channel = self.parent().imageData.shape
+            bytesPerLine = 3 * width    
+            qImage = QtGui.QImage(self.parent().imageData.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+            qImage = qImage.convertToFormat(QImage.Format_Grayscale8)
+            
+            pixmapImage = QPixmap.fromImage(qImage)
+            pixmapImage = pixmapImage.scaled(self.width(), self.height(), aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio)
+
+            self.parent().originalImageLabel.setPixmap(pixmapImage)
+
+            # Update Image Data
+            imageFourierTransform(self.parent(), self.parent().imageData)
+            displayFrequencyComponent(self.parent(), self.parent().component_selector.currentText())
+
+
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.last_pos = None
             # Emit signal when drag is complete
             self.dragComplete.emit()
 
+
     def dragEnterEvent(self, event):
         if event.mimeData().hasImage() or event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
+
 
     def dropEvent(self, event):
         self.hide_drop_indicator()
@@ -724,19 +831,28 @@ class ImageDisplay(QLabel):
             file_path = event.mimeData().urls()[0].toLocalFile()
             self.setPixmap(QPixmap(file_path))
     
+
+
     def _setup_loading_spinner(self):
         self.loading_spinner = QProgressIndicator(self)
         self.loading_spinner.hide()
         
+
+
     def showLoadingSpinner(self):
         if self.loading_spinner:
             self.loading_spinner.start()
             self.loading_spinner.show()
     
+
+
+
     def hideLoadingSpinner(self):
         if self.loading_spinner:
             self.loading_spinner.stop()
             self.loading_spinner.hide()
+
+
 
     def _setup_drop_indicator(self):
         self.drop_indicator.setStyleSheet(f"""
@@ -750,7 +866,9 @@ class ImageDisplay(QLabel):
         self.drop_indicator.setText("Drop image here")
         self.drop_indicator.setAlignment(Qt.AlignCenter)
 
+
     def dragEnterEvent(self, event):
+        print("Dragging")
         if event.mimeData().hasImage() or event.mimeData().hasUrls():
             event.accept()
             self.show_drop_indicator()
@@ -777,7 +895,7 @@ class MainController:
     def __init__(self, window):
         self.window = window
         self.current_thread = None
-        #self.setup_connections()
+        
 
 # Add a custom loading spinner widget
 class QProgressIndicator(QWidget):
