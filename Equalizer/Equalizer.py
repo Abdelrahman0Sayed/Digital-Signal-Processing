@@ -393,6 +393,7 @@ STYLES['TOGGLE_BUTTON'] = f"""
         border: 2px solid {COLORS['accent']};
         border-radius: 20px;
         padding: 10px 20px;
+        margin: 0px;
         font-size: 14px;
         font-weight: 600;
         min-width: 120px;
@@ -572,8 +573,8 @@ STYLES['SLIDERS_CONTAINER'] = f"""
         background-color: {COLORS['secondary']};
         border: 1px solid {COLORS['accent']};
         border-radius: 15px;
-        padding: 10px;
-        margin: 10px 0px;
+        padding: 0px;
+        margin: 0px 0px;
     }}
     QLabel {{
         color: {COLORS['text']};
@@ -582,6 +583,290 @@ STYLES['SLIDERS_CONTAINER'] = f"""
         margin-bottom: 5px;
     }}
 """
+
+
+STYLES['SPECTROGRAM_AXES'] = {
+    'grid_alpha': 0.2,
+    'grid_color': COLORS['text'],
+    'label_color': COLORS['text'],
+    'tick_color': COLORS['text'],
+    'title_color': COLORS['text'],
+    'spine_color': COLORS['accent']
+}
+
+STYLES['SLIDERS_CONTAINER'] = f"""
+    QWidget {{
+        background-color: {COLORS['secondary']};
+        border: 2px solid {COLORS['accent']};
+        border-radius: 20px;
+        padding: 15px;
+        margin: 10px 0px;
+    }}
+"""
+
+STYLES['SLIDER'] = f"""
+    QSlider {{
+        height: 50px;
+        margin: 10px;
+    }}
+    
+    QSlider::groove:horizontal {{
+        border: none;
+        height: 4px;
+        background: {COLORS['background']};
+        border-radius: 2px;
+        margin: 0px;
+    }}
+    
+    QSlider::handle:horizontal {{
+        background: {COLORS['accent']};
+        border: 2px solid {COLORS['accent']};
+        width: 16px;
+        height: 16px;
+        margin: -6px 0;
+        border-radius: 10px;
+        transition: background-color 0.2s;
+    }}
+    
+    QSlider::handle:horizontal:hover {{
+        background: {COLORS['button_hover']};
+        border-color: {COLORS['button_hover']};
+        transform: scale(1.1);
+    }}
+    
+    QSlider::sub-page:horizontal {{
+        background: {COLORS['accent']};
+        border-radius: 2px;
+    }}
+"""
+
+STYLES['SLIDER_LABEL'] = f"""
+    QLabel {{
+        color: {COLORS['text']};
+        font-size: 13px;
+        font-weight: bold;
+        padding: 5px;
+    }}
+"""
+
+STYLES['SLIDER_VALUE'] = f"""
+    QLabel {{
+        color: {COLORS['accent']};
+        font-size: 12px;
+        font-weight: bold;
+        padding: 2px 8px;
+        background: rgba(114, 137, 218, 0.1);
+        border-radius: 10px;
+    }}
+"""
+
+STYLES['SLIDERS_CONTAINER'] = f"""
+    QWidget {{
+        background-color: {COLORS['secondary']};
+        border: 1px solid {COLORS['accent']};
+        border-radius: 12px;
+        padding: 0px;
+        margin: 2px 0px;
+    }}
+"""
+
+STYLES['PANEL'] = f"""
+    QFrame {{
+        background-color: rgba(42, 43, 46, 0.7);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+    }}
+"""
+
+STYLES['PANEL'] = f"""
+    QFrame {{
+        background-color: rgba(42, 43, 46, 0.7);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+    }}
+"""
+
+STYLES['SCROLL_AREA'] = f"""
+    QScrollArea {{
+        border: none;
+        background-color: transparent;
+        margin: 0px;
+        padding: 0px;
+    }}
+    
+    QScrollArea > QWidget > QWidget {{
+        background-color: transparent;
+    }}
+    
+    QScrollBar:vertical {{
+        border: none;
+        background: {COLORS['secondary']};
+        width: 6px;
+        margin: 0px;
+        border-radius: 3px;
+    }}
+    
+    QScrollBar::handle:vertical {{
+        background: {COLORS['accent']};
+        min-height: 20px;
+        border-radius: 3px;
+    }}
+    
+    QScrollBar::handle:vertical:hover {{
+        background: {COLORS['button_hover']};
+    }}
+    
+    QScrollBar::add-line:vertical,
+    QScrollBar::sub-line:vertical {{
+        height: 0px;
+    }}
+    
+    QScrollBar::add-page:vertical,
+    QScrollBar::sub-page:vertical {{
+        background: none;
+    }}
+"""
+
+STYLES['SIDEBAR'] = f"""
+    QFrame {{
+        background-color: {COLORS['secondary']};
+        border-radius: 15px;
+        padding:5px;
+    }}
+"""
+
+STYLES['SIDEBAR_SECTION'] = f"""
+    QWidget {{
+        background-color: {COLORS['secondary']};
+        border-radius: 12px;
+        padding: 0px;
+        margin: 0px 0px;
+    }}
+"""
+
+STYLES['SECTION_TITLE'] = f"""
+    QLabel {{
+        color: {COLORS['text']};
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        padding:0px 0px 0px 0px;
+        margin: 0;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+        border-bottom: 1px solid {COLORS['accent']};
+        border-bottom:0px;
+        border-radius: 0px;
+    }}
+    QLabel:hover {{
+        color: {COLORS['accent']};
+    }}
+"""
+
+STYLES['DIVIDER'] = f"""
+    QFrame {{
+        background-color: {COLORS['accent']};
+        border: none;
+        height: 1px;
+        margin: 10px 0px;
+    }}
+"""
+
+
+def setup_sidebar(self):
+    # Main sidebar frame
+    self.sideBarFrame.setStyleSheet(STYLES['SIDEBAR'])
+    self.sideBarFrame.setMinimumWidth(350)
+    self.verticalLayout_2.setSpacing(15)
+    self.verticalLayout_2.setContentsMargins(5, 5, 5, 5)
+
+    # 1. File Section
+    self.fileSection = QtWidgets.QWidget()
+    fileLayout = QtWidgets.QVBoxLayout(self.fileSection)
+    fileLayout.setSpacing(10)
+    
+    sectionTitle = QtWidgets.QLabel("File Operations")
+    sectionTitle.setStyleSheet(STYLES['SECTION_TITLE'])
+    fileLayout.addWidget(sectionTitle)
+    
+    self.browseFile.setStyleSheet(STYLES['BUTTON'])
+    fileLayout.addWidget(self.browseFile)
+    
+    self.verticalLayout_2.addWidget(self.fileSection)
+
+    # 2. View Controls Section
+    self.viewSection = QtWidgets.QWidget()
+    viewLayout = QtWidgets.QVBoxLayout(self.viewSection)
+    viewLayout.setSpacing(10)
+    
+    viewTitle = QtWidgets.QLabel("View Controls")
+    viewTitle.setStyleSheet(STYLES['SECTION_TITLE'])
+    viewLayout.addWidget(viewTitle)
+    
+    # Add frequency domain toggle
+    self.frequencyDomainButton.setStyleSheet(STYLES['TOGGLE_BUTTON'])
+    viewLayout.addWidget(self.frequencyDomainButton)
+    
+    # Add spectrogram toggle
+    self.spectogramCheck.setStyleSheet(STYLES['CHECKBOX'])
+    viewLayout.addWidget(self.spectogramCheck)
+    
+    self.verticalLayout_2.addWidget(self.viewSection)
+
+    # 3. Mode Selection Section
+    self.modeSection = QtWidgets.QWidget()
+    modeLayout = QtWidgets.QVBoxLayout(self.modeSection)
+    modeLayout.setSpacing(10)
+    
+    self.modeLabel.setStyleSheet(STYLES['SECTION_TITLE'])
+    modeLayout.addWidget(self.modeLabel)
+    modeLayout.addWidget(self.modeList)
+    
+    self.verticalLayout_2.addWidget(self.modeSection)
+
+    # 4. Equalizer Section
+    self.equalizerSection = QtWidgets.QWidget()
+    equalizerLayout = QtWidgets.QVBoxLayout(self.equalizerSection)
+    equalizerLayout.setSpacing(10)
+    
+    eqTitle = QtWidgets.QLabel("Equalizer")
+    eqTitle.setStyleSheet(STYLES['SECTION_TITLE'])
+    equalizerLayout.addWidget(eqTitle)
+    
+    self.scrollArea.setStyleSheet(STYLES['SCROLL_AREA'])
+    equalizerLayout.addWidget(self.scrollArea)
+    
+    self.verticalLayout_2.addWidget(self.equalizerSection)
+
+    # 5. Playback Controls Section
+    self.playbackSection = QtWidgets.QWidget()
+    playbackLayout = QtWidgets.QVBoxLayout(self.playbackSection)
+    playbackLayout.setSpacing(10)
+    
+    playbackTitle = QtWidgets.QLabel("Playback Controls")
+    playbackTitle.setStyleSheet(STYLES['SECTION_TITLE'])
+    playbackLayout.addWidget(playbackTitle)
+    
+    self.playOriginalSignal.setStyleSheet(STYLES['BUTTON'])
+    self.playFilteredSignal.setStyleSheet(STYLES['BUTTON'])
+    self.exportButton.setStyleSheet(STYLES['BUTTON'])
+    playbackLayout.addWidget(self.playOriginalSignal)
+    playbackLayout.addWidget(self.playFilteredSignal)
+
+    playbackLayout.addWidget(self.exportButton)
+    
+    self.verticalLayout_2.addWidget(self.playbackSection)
+
+    # Add stretcher at the bottom
+    self.verticalLayout_2.addStretch()
+
+def addDivider(self):
+    divider = QtWidgets.QFrame()
+    divider.setFrameShape(QtWidgets.QFrame.HLine)
+    divider.setStyleSheet(STYLES['DIVIDER'])
+    self.verticalLayout_2.addWidget(divider)
 
 def apply_fonts(self):
     """Apply consistent fonts throughout the application"""
@@ -598,7 +883,7 @@ def apply_fonts(self):
     heading_font = QtGui.QFont(FONT_STYLES['HEADING']['family'].split(',')[0])
     heading_font.setPointSize(FONT_STYLES['HEADING']['size'])
     heading_font.setBold(True)
-    for label in [self.modeLabel, self.originalSignal, self.filteredSignal]:
+    for label in [self.modeLabel]:
         label.setFont(heading_font)
         label.style().unpolish(label)  # Force style refresh
         label.style().polish(label)
@@ -740,9 +1025,9 @@ class Ui_MainWindow(QMainWindow):
                 
                 # Reset play button states
                 self.playOriginalSignal.setIcon(self.playIcon)
-                self.playOriginalSignal.setText("Play Audio")
+                self.playOriginalSignal.setText("Play Original Audio")
                 self.playFilteredSignal.setIcon(self.playIcon)
-                self.playFilteredSignal.setText("Play Audio")
+                self.playFilteredSignal.setText("Play Filtered Audio")
                 
                 # Show loading spinner
                 self.loadingSpinner.show()
@@ -776,33 +1061,25 @@ class Ui_MainWindow(QMainWindow):
                 )
                 self.audiogramLayout.addWidget(self.audiogramWidget)
 
-                if not hasattr(self, 'firstGraphFigure'):
-                    self.firstGraphFigure = Figure(figsize=(5, 3), dpi=100)
-                    self.firstGraphCanvas = FigureCanvas(self.firstGraphFigure)
-                    self.firstGraphAxis = self.firstGraphFigure.add_subplot(111)
-
-                if not hasattr(self, 'secondGraphFigure'):
-                    self.secondGraphFigure = Figure(figsize=(5, 3), dpi=100)
-                    self.secondGraphCanvas = FigureCanvas(self.secondGraphFigure)
-                    self.secondGraphAxis = self.secondGraphFigure.add_subplot(111)
-
-                # Update UI
-                signalPlotting(self)
-                plotSpectrogram(self)
+                # Clear existing spectrograms
+                self.firstGraphAxis.clear()
+                self.secondGraphAxis.clear()
                 
-                # Add figures to layout if not already added
-                if self.firstGraphCanvas.parent() is None:
-                    self.verticalGraphs.addWidget(self.firstGraphCanvas)
-                if self.secondGraphCanvas.parent() is None:
-                    self.verticalGraphs.addWidget(self.secondGraphCanvas)
-
-
-                updateEqualization(self)
-                changeMode(self, self.current_mode)
+                # Update UI with new data
+                if len(self.signalData) > 1:  # Only plot if we have valid data
+                    signalPlotting(self)
+                    
+                    # Force spectrogram update
+                    plotSpectrogram(self)
+                    self.firstGraphCanvas.draw()
+                    self.secondGraphCanvas.draw()
+                    
+                    updateEqualization(self)
+                    changeMode(self, self.current_mode)
                 
                 # Store references
                 self.lastLoadedSignal = np.copy(self.signalData)
-                self.lastModifiedSignal = np.copy(self.signalData)
+                self.lastModifiedSignal = np.copy(self.modifiedData)
                 
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Error loading file: {str(e)}")
@@ -979,7 +1256,9 @@ class Ui_MainWindow(QMainWindow):
         self.browseFile.setIconSize(QtCore.QSize(25, 25))
         self.browseFile.setObjectName("browseFile")
         self.browseFile.clicked.connect(self.LoadSignalFile)
-        self.verticalLayout_2.addWidget(self.browseFile)
+        #self.verticalLayout_2.addWidget(self.browseFile)
+
+        
         
         
         self.frequencyDomainButton = QtWidgets.QPushButton(self.sideBarFrame)
@@ -995,39 +1274,19 @@ class Ui_MainWindow(QMainWindow):
         self.frequencyDomainButton.setIcon(self.signalIcon)
         self.frequencyDomainButton.setIconSize(QtCore.QSize(25, 25))
         self.frequencyDomainButton.setObjectName("Toggle frequency domain")
-        self.verticalLayout_2.addWidget(self.frequencyDomainButton)
+        #self.verticalLayout_2.addWidget(self.frequencyDomainButton)
         self.frequencyDomainButton.clicked.connect(lambda : self.audiogramWidget.toggleShape())
 
 
 
     
         
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem)
         
-        self.line_9 = QtWidgets.QFrame(self.sideBarFrame)
-        self.line_9.setStyleSheet("/* Line style */\n"
-        "  width: 20px;\n"
-        "  height: 5px;\n"
-        "  background-color: rgb(39, 44, 54);\n"
-        "  border: 10px;\n"
-        "  border-radius:5px;\n"
-        "")
-        self.line_9.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line_9.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.line_9.setObjectName("line_9")
-        self.verticalLayout_2.addWidget(self.line_9)
-        
-        self.verticalLayout = QtWidgets.QVBoxLayout()
-        self.verticalLayout.setSpacing(0)
-        self.verticalLayout.setObjectName("verticalLayout")
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout.addItem(spacerItem1)
         
         
         self.setup_mode_selection()
 
-        # Check Box for Spectogram
+        # Check Box for Spectogram with reduced margins
         self.spectogramCheck = QtWidgets.QCheckBox(self.sideBarFrame)
         font = QtGui.QFont()
         font.setFamily("Overpass SemiBold")
@@ -1035,82 +1294,49 @@ class Ui_MainWindow(QMainWindow):
         font.setBold(True)
         font.setWeight(75)
         self.spectogramCheck.setFont(font)
-        self.spectogramCheck.setStyleSheet("QCheckBox {\n"
-        "    spacing: 10px;\n"
-        "color:white;\n"
-        "background: rgba(74, 74, 74, 0);\n"
-        "margin-top: 12px;\n"
-        "}\n"
-        "\n"
-        "QCheckBox::indicator {\n"
-        "    width: 15px; /* Adjust the width of the checkbox indicator */\n"
-        "    height: 15px; /* Adjust the height of the checkbox indicator */\n"
-        "border-radius: 5px;\n"
-        "}\n"
-        "\n"
-        "QCheckBox::indicator:unchecked {\n"
-        "    border: 2px solid #555; /* Border color of the unchecked checkbox */\n"
-        "    background-color: #fff; /* Background color of the unchecked checkbox */\n"
-        "}\n"
-        "\n"
-        "QCheckBox::indicator:unchecked:hover {\n"
-        "    border: 2px solid #777; /* Border color when the unchecked checkbox is hovered */\n"
-        "}\n"
-        "\n"
-        "QCheckBox::indicator:checked {\n"
-        "    border: 2px solid #192462; /* Border color of the checked checkbox */\n"
-        "    background-color: #405cf5; /* Background color of the checked checkbox */\n"
-        "}\n"
-        "\n"
-        "QCheckBox::indicator:checked:hover {\n"
-        "    border: 2px solid #0C1231; /* Border color when the checked checkbox is hovered */\n"
-        "    background-color: #2C40AB; /* Background color when the checked checkbox is hovered */\n"
-        "}\n"
-        "")
+        self.spectogramCheck.setStyleSheet(f"""
+            QCheckBox {{
+                spacing: 10px;
+                color: {COLORS['text']};
+                background: transparent;
+                margin: 5px 0;
+                padding: 5px 0;
+            }}
+            
+            QCheckBox::indicator {{
+                width: 15px;
+                height: 15px;
+                border-radius: 5px;
+            }}
+            
+            QCheckBox::indicator:unchecked {{
+                border: 2px solid #555;
+                background-color: #fff;
+            }}
+            
+            QCheckBox::indicator:unchecked:hover {{
+                border: 2px solid #777;
+            }}
+            
+            QCheckBox::indicator:checked {{
+                border: 2px solid #192462;
+                background-color: #405cf5;
+            }}
+            
+            QCheckBox::indicator:checked:hover {{
+                border: 2px solid #0C1231;
+                background-color: #2C40AB;
+            }}
+        """)
         self.spectogramCheck.setIconSize(QtCore.QSize(20, 20))
         self.spectogramCheck.setTristate(False)
         self.spectogramCheck.setObjectName("spectogramCheck")
         self.spectogramCheck.stateChanged.connect(lambda : toggleVisibility(self))
-        self.verticalLayout_2.addWidget(self.spectogramCheck)
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem1)
+        #self.verticalLayout_2.addWidget(self.spectogramCheck)
+
         
         
         
-        self.line_10 = QtWidgets.QFrame(self.sideBarFrame)
-        self.line_10.setStyleSheet("/* Line style */\n"
-        "  width: 20px;\n"
-        "  height: 5px;\n"
-        "  background-color:rgb(39, 44, 54);\n"
-        "  border: 10px;\n"
-        "  border-radius:5px;\n"
-        "")
-        self.line_10.setFrameShape(QtWidgets.QFrame.HLine)
-        self.line_10.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.line_10.setObjectName("line_10")
-        self.verticalLayout_2.addWidget(self.line_10)
-        
-        
-        
-        self.originalSignal = QtWidgets.QLabel(self.sideBarFrame)
-        font = QtGui.QFont()
-        font.setFamily("Overpass SemiBold")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.originalSignal.setFont(font)
-        self.originalSignal.setStyleSheet("color:rgb(255, 255, 255);\n"
-                "background: rgba(74, 74, 74, 0);\n"
-                "margin-top: 10px;\n"
-                "margin-bottom:0;")
-        self.originalSignal.setObjectName("audioBefore")
-        self.verticalLayout_2.addWidget(self.originalSignal)
-        
-        
-        self.audio1 = QtWidgets.QWidget(self.sideBarFrame)
-        self.audio1.setStyleSheet("margin:0 0;")
-        self.audio1.setObjectName("audio1")
-        self.verticalLayout_2.addWidget(self.audio1)
         self.playOriginalSignal = QtWidgets.QPushButton(self.sideBarFrame)
         font = QtGui.QFont()
         font.setFamily("-apple-system")
@@ -1118,47 +1344,14 @@ class Ui_MainWindow(QMainWindow):
         font.setBold(True)
         font.setWeight(75)
         self.playOriginalSignal.setFont(font)
-        self.playOriginalSignal.setStyleSheet("QPushButton{\n"
-                "background-color: #062e51;\n"
-                "border-radius: 6px;\n"
-                "border: 2px solid white;\n"
-                "color: #fff;\n"
-                "cursor: pointer;\n"
-                "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-                "font-size: 100%;\n"
-                "}\n"
-                "QPushButton:hover{\n"
-                "background-color: #283999;\n"
-                "}\n"
-                "QPushButton:pressed{\n"
-                "background-color: #1c2973;\n"
-                "}")
 
         self.playOriginalSignal.setStyleSheet(STYLES['BUTTON'])
         self.playOriginalSignal.setIcon(self.playIcon)
         self.playOriginalSignal.setIconSize(QtCore.QSize(25, 25))
         self.playOriginalSignal.setObjectName("playAudio1")
-        self.verticalLayout_2.addWidget(self.playOriginalSignal)
+        #self.verticalLayout_2.addWidget(self.playOriginalSignal)
         
-        
-        self.filteredSignal = QtWidgets.QLabel(self.sideBarFrame)
 
-        font = QtGui.QFont()
-        font.setFamily("Overpass SemiBold")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.filteredSignal.setFont(font)
-        self.filteredSignal.setStyleSheet("color:rgb(255, 255, 255);\n"
-                "background: rgba(74, 74, 74, 0);\n"
-                "margin-top: 10px;"
-        )
-        self.filteredSignal.setObjectName("Filtered Signal")
-        self.verticalLayout_2.addWidget(self.filteredSignal)
-        self.audio2 = QtWidgets.QWidget(self.sideBarFrame)
-        self.audio2.setStyleSheet("margin:0 0;")
-        self.audio2.setObjectName("audio2")
-        self.verticalLayout_2.addWidget(self.audio2)
         
         
         self.playFilteredSignal = QtWidgets.QPushButton(self.sideBarFrame)
@@ -1168,59 +1361,23 @@ class Ui_MainWindow(QMainWindow):
         font.setBold(True)
         font.setWeight(75)
         self.playFilteredSignal.setFont(font)
-        self.playFilteredSignal.setStyleSheet("QPushButton{\n"
-                "background-color: #062e51;\n"
-                "border-radius: 6px;\n"
-                "color: #fff;\n"
-                "border: 2px solid white;\n"
-                "cursor: pointer;\n"
-                "font-family: -apple-system,system-ui,\"Segoe UI\",Roboto,\"Helvetica Neue\",Ubuntu,sans-serif;\n"
-                "font-size: 100%;\n"
-                "}\n"
-                "QPushButton:hover{\n"
-                "background-color: #283999;\n"
-                "}\n"
-                "QPushButton:pressed{\n"
-                "background-color: #1c2973;\n"
-        "}")
         self.playFilteredSignal.setStyleSheet(STYLES['BUTTON'])
         self.playFilteredSignal.setIcon(self.playIcon)
         self.playFilteredSignal.setIconSize(QtCore.QSize(25, 25))
-        self.playFilteredSignal.setObjectName("playAudio2")
+        #self.playFilteredSignal.setObjectName("playAudio2")
 
         # Some Spacing to add margin effect
-        self.verticalLayout_2.addWidget(self.playFilteredSignal)
-        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem2)
-        spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem3)
-        spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem4)
-        spacerItem5 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem5)
-        spacerItem6 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem6)
-        spacerItem7 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_2.addItem(spacerItem7)
-        
-        
+        #self.verticalLayout_2.addWidget(self.playFilteredSignal)
+
         # ----- Export Button ----- #
         self.exportButton = QtWidgets.QPushButton(self.sideBarFrame)
-        self.exportButton.setStyleSheet("QPushButton{\n"
-                "    background-color: transparent;\n"
-                "    border-radius: 10px;\n"
-                "    color:white;\n"
-                "    border: 2px solid white;\n"
-                "    font-size: 20px;\n"
-                "padding: 10px;\n"
-                "\n"
-                "}\n"
-        "")
         self.exportButton.setObjectName("Export Signal")
         self.exportButton.setIcon(self.exportIcon)
         self.exportButton.setIconSize(QtCore.QSize(25, 25))
-        self.verticalLayout_2.addWidget(self.exportButton)
-        self.exportButton.clicked.connect(lambda : export_signal(self))
+        #self.verticalLayout_2.addWidget(self.exportButton)
+        #self.exportButton.clicked.connect(lambda : export_signal(self))
+
+        
 
 
 
@@ -1252,12 +1409,12 @@ class Ui_MainWindow(QMainWindow):
         self.graphsLayout.addWidget(self.graph2)
         
 
-        # viewbox1 = self.graph1.getViewBox()
-        # viewbox2 = self.graph2.getViewBox()
+        viewbox1 = self.graph1.getViewBox()
+        viewbox2 = self.graph2.getViewBox()
 
-        # # Connect the ViewBox signals in both directions
-        # viewbox1.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox1, viewbox2))
-        # viewbox2.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox2, viewbox1))
+        # Connect the ViewBox signals in both directions
+        viewbox1.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox1, viewbox2))
+        viewbox2.sigRangeChanged.connect(lambda window, viewRange: self.sync_pan(viewbox2, viewbox1))
 
 
         self.controlButtonsLayout = QtWidgets.QHBoxLayout()
@@ -1366,19 +1523,29 @@ class Ui_MainWindow(QMainWindow):
         self.secondSpectrogramLayout = QtWidgets.QHBoxLayout(self.secondSpectrogramContainer)
 
         # Initialize spectrograms with proper dimensions and settings
-        self.firstSpectrogramFig = Figure(figsize=(8, 4))  # Changed aspect ratio
+        self.firstSpectrogramFig = Figure(figsize=(8, 4), constrained_layout=True)
         self.firstSpectrogramFig.patch.set_alpha(0.0)
         self.firstGraphCanvas = FigureCanvas(self.firstSpectrogramFig)
-        self.firstGraphCanvas.setFixedHeight(200)
+        # Add more space on right for colorbar
         self.firstGraphAxis = self.firstSpectrogramFig.add_subplot(111)
         self.firstGraphAxis.set_facecolor('none')
 
-        self.secondSpectrogramFig = Figure(figsize=(8, 4))  # Changed aspect ratio
+        self.secondSpectrogramFig = Figure(figsize=(8, 4), constrained_layout=True)
         self.secondSpectrogramFig.patch.set_alpha(0.0)
         self.secondGraphCanvas = FigureCanvas(self.secondSpectrogramFig)
-        self.secondGraphCanvas.setFixedHeight(200)
         self.secondGraphAxis = self.secondSpectrogramFig.add_subplot(111)
         self.secondGraphAxis.set_facecolor('none')
+
+        # Add tight layout to both figures
+        self.firstSpectrogramFig.tight_layout()
+        self.secondSpectrogramFig.tight_layout()
+
+        self.firstGraphAxis.text(0.5, 0.5, 'Load a signal to view spectrogram', 
+            horizontalalignment='center', verticalalignment='center',
+            color=COLORS['text'])
+        self.secondGraphAxis.text(0.5, 0.5, 'Load a signal to view spectrogram',
+            horizontalalignment='center', verticalalignment='center',
+            color=COLORS['text'])
 
         # Create spectrogram layout with fixed size
         self.spectrogramLayout = QtWidgets.QHBoxLayout()
@@ -1430,12 +1597,6 @@ class Ui_MainWindow(QMainWindow):
         self.verticalGraphs.addWidget(self.audiogramContainer)
 
 
-
-
-        # Add sliders section
-        # Create floating slider window
-        self.sliderWindow = SliderWindow()
-        self.sliderWindow.resize(300, 400)  # Set initial size
 
         # Configure main layout
         self.gridLayout_3 = QtWidgets.QGridLayout(self.mainBodyframe)
@@ -1499,14 +1660,83 @@ class Ui_MainWindow(QMainWindow):
         self.audiogramLayout.setSpacing(15)
         self.audiogramLayout.setContentsMargins(0, 20, 0, 0)
 
-        # Add button to show/hide slider window
-        self.toggleSlidersButton = QtWidgets.QPushButton(self.sideBarFrame)
-        self.toggleSlidersButton.setText("Show/Hide Equalizer")
-        self.toggleSlidersButton.setStyleSheet(STYLES['BUTTON'])
-        self.toggleSlidersButton.clicked.connect(lambda: self.sliderWindow.setVisible(
-            not self.sliderWindow.isVisible()
-        ))
-        self.verticalLayout_2.addWidget(self.toggleSlidersButton)
+        self.slidersContainer = QtWidgets.QWidget(self.sideBarFrame)
+        self.slidersContainer.setStyleSheet(STYLES['SLIDERS_CONTAINER'])
+        self.slidersLayout = QtWidgets.QVBoxLayout(self.slidersContainer)
+        self.slidersLayout.setSpacing(10)
+        self.slidersLayout.setContentsMargins(0 , 0, 0, 0)
+
+        # Create scroll area
+        self.scrollArea = QtWidgets.QScrollArea(self.sideBarFrame)
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scrollArea.setStyleSheet(f"""
+            QScrollArea {{
+                border: none;
+                background-color: transparent;
+            }}
+            
+            QScrollArea > QWidget > QWidget {{
+                background-color: transparent;
+            }}
+            
+            QScrollBar:vertical {{
+                border: none;
+                background: {COLORS['secondary']};
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            
+            QScrollBar::handle:vertical {{
+                background: {COLORS['accent']};
+                min-height: 20px;
+                border-radius: 4px;
+            }}
+            
+            QScrollBar::handle:vertical:hover {{
+                background: {COLORS['button_hover']};
+            }}
+            
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+        """)
+
+        # Create inner widget to hold sliders
+        self.slidersInnerContainer = QtWidgets.QWidget()
+        self.slidersInnerLayout = QtWidgets.QVBoxLayout(self.slidersInnerContainer)
+        self.slidersInnerLayout.setSpacing(10)
+        self.slidersInnerLayout.setContentsMargins(10, 10, 10, 10)
+
+ 
+
+        # Add separator line
+        # self.slidersSeparator = QtWidgets.QFrame()
+        # self.slidersSeparator.setFrameShape(QtWidgets.QFrame.HLine)
+        # self.slidersSeparator.setStyleSheet(f"""
+        #     background-color: {COLORS['accent']};
+        #     border: none;
+        #     height: 2px;
+        #     margin: 0 10px;
+        # """)
+        # self.slidersLayout.addWidget(self.slidersSeparator)
+
+        # Set up scroll area
+        self.scrollArea.setWidget(self.slidersInnerContainer)
+        self.slidersLayout.addWidget(self.scrollArea)
+
+        # Add sliders container to sidebar before the export button
+        #self.verticalLayout_2.insertWidget(self.verticalLayout_2.count() - 1, self.slidersContainer)
+
+        setup_sidebar(self)
 
 
         
@@ -1618,7 +1848,7 @@ class Ui_MainWindow(QMainWindow):
         self.modeSelectionLayout.addWidget(self.modeList)
         
         # Add to main sidebar layout
-        self.verticalLayout_2.addWidget(self.modeSelectionContainer)
+        #self.verticalLayout_2.addWidget(self.modeSelectionContainer)
 
         # Connect signal
         self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
@@ -1662,195 +1892,12 @@ class Ui_MainWindow(QMainWindow):
         #self.frequencyDomainButton.setText(_translate("MainWindow", "Frequency Domain"))
         self.modeLabel.setText(_translate("MainWindow", "Choose The Mode"))
         self.spectogramCheck.setText(_translate("MainWindow", "Hide The Spectograms"))
-        self.originalSignal.setText(_translate("MainWindow", "Original Signal"))
-        self.playOriginalSignal.setText(_translate("MainWindow", "Play Audio"))
-        self.filteredSignal.setText(_translate("MainWindow", "Filtered Signal"))
-        self.playFilteredSignal.setText(_translate("MainWindow", "Play Audio"))
+        
+        self.playOriginalSignal.setText(_translate("MainWindow", "Play Original Audio"))
+        self.playFilteredSignal.setText(_translate("MainWindow", "Play Filtered Audio"))
         self.exportButton.setText(_translate("MainWindow", "Export Signal"))
     
     
-class SliderWindow(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        
-        # Main layout with margins for shadow effect
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Main container with glass effect
-        self.mainContainer = QtWidgets.QWidget()
-        self.mainContainer.setObjectName("mainContainer")
-        self.mainContainerLayout = QtWidgets.QVBoxLayout(self.mainContainer)
-        self.mainContainerLayout.setSpacing(15)
-        
-        # Title bar
-        self.titleBar = QtWidgets.QWidget()
-        self.titleBar.setFixedHeight(50)
-        self.titleBarLayout = QtWidgets.QHBoxLayout(self.titleBar)
-        self.titleBarLayout.setContentsMargins(15, 5, 15, 5)
-        
-        # Title label with icon
-        self.titleLabel = QtWidgets.QLabel("Equalizer")
-        self.titleLabel.setStyleSheet(f"""
-            color: {COLORS['text']};
-            font-weight: bold;
-            font-size: 16px;
-            padding: 5px;
-        """)
-        
-        # Add equalizer icon
-        titleIcon = QtGui.QPixmap("images/equalizer.png")  # Add an equalizer icon
-        titleIcon = titleIcon.scaled(24, 24, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
-        self.iconLabel = QtWidgets.QLabel()
-        self.iconLabel.setPixmap(titleIcon)
-        
-        # Close button
-        self.closeButton = QtWidgets.QPushButton("×")
-        self.closeButton.setFixedSize(30, 30)
-        self.closeButton.clicked.connect(self.hide)
-        self.closeButton.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {COLORS['error']};
-                color: white;
-                border-radius: 15px;
-                font-size: 20px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #ff6b6b;
-                transform: scale(1.1);
-            }}
-        """)
-        
-        # Add widgets to title bar
-        self.titleBarLayout.addWidget(self.iconLabel)
-        self.titleBarLayout.addWidget(self.titleLabel)
-        self.titleBarLayout.addStretch()
-        self.titleBarLayout.addWidget(self.closeButton)
-        
-        # Separator line
-        self.separator = QtWidgets.QFrame()
-        self.separator.setFrameShape(QtWidgets.QFrame.HLine)
-        self.separator.setStyleSheet(f"""
-            background-color: {COLORS['accent']};
-            border: none;
-            height: 2px;
-            margin: 0 10px;
-        """)
-        
-        # Container for sliders
-        self.slidersContainer = QtWidgets.QWidget()
-        self.slidersLayout = QtWidgets.QVBoxLayout(self.slidersContainer)
-        self.slidersLayout.setSpacing(15)
-        self.slidersLayout.setContentsMargins(15, 15, 15, 15)
-        
-        # Add all widgets to main container
-        self.mainContainerLayout.addWidget(self.titleBar)
-        self.mainContainerLayout.addWidget(self.separator)
-        self.mainContainerLayout.addWidget(self.slidersContainer)
-        
-        # Add main container to layout
-        self.layout.addWidget(self.mainContainer)
-        
-        # Style the window
-        self.setStyleSheet(f"""
-            QWidget#mainContainer {{
-                background-color: {COLORS['secondary']};
-                border: 1px solid {COLORS['accent']};
-                border-radius: 15px;
-            }}
-            
-            QLabel {{
-                color: {COLORS['text']};
-                font-size: 14px;
-            }}
-            
-            QSlider::groove:horizontal {{
-                border: none;
-                height: 6px;
-                background: {COLORS['background']};
-                border-radius: 3px;
-                margin: 0 5px;
-            }}
-            
-            QSlider::handle:horizontal {{
-                background: {COLORS['accent']};
-                border: none;
-                width: 18px;
-                height: 18px;
-                margin: -6px 0;
-                border-radius: 9px;
-            }}
-            
-            QSlider::handle:horizontal:hover {{
-                background: {COLORS['button_hover']};
-                transform: scale(1.1);
-            }}
-            
-            QSlider {{
-                height: 30px;
-            }}
-        """)
-        
-        self.oldPos = None
-        self.setMinimumWidth(300)
-
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton and self.titleBar.rect().contains(event.pos()):
-            self.oldPos = event.globalPos()
-
-    def mouseMoveEvent(self, event):
-        if self.oldPos:
-            delta = event.globalPos() - self.oldPos
-            self.move(self.pos() + delta)
-            self.oldPos = event.globalPos()
-
-    def mouseReleaseEvent(self, event):
-        self.oldPos = None
-
-    def addSlider(self, label, min_val, max_val, value):
-        sliderWidget = QtWidgets.QWidget()
-        sliderLayout = QtWidgets.QVBoxLayout(sliderWidget)
-        sliderLayout.setSpacing(5)
-        
-        # Header layout for label and value
-        headerLayout = QtWidgets.QHBoxLayout()
-        
-        # Label
-        labelWidget = QtWidgets.QLabel(label)
-        labelWidget.setStyleSheet(f"""
-            color: {COLORS['text']};
-            font-weight: bold;
-        """)
-        
-        # Value label - Make this local instead of class member
-        valueLabel = QtWidgets.QLabel(f"{value}")  # Changed from self.valueLabel
-        valueLabel.setStyleSheet(f"""
-            color: {COLORS['accent']};
-            font-weight: bold;
-        """)
-        
-        headerLayout.addWidget(labelWidget)
-        headerLayout.addStretch()
-        headerLayout.addWidget(valueLabel)
-        
-        # Slider
-        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        slider.setMinimum(min_val)
-        slider.setMaximum(max_val)
-        slider.setValue(value)
-        
-        # Update value label when slider moves - now updates correct label
-        slider.valueChanged.connect(lambda v: valueLabel.setText(f"{v}"))
-        
-        sliderLayout.addLayout(headerLayout)
-        sliderLayout.addWidget(slider)
-        
-        self.slidersLayout.addWidget(sliderWidget)
-        return slider
-
 
 
 
@@ -1882,12 +1929,8 @@ if __name__ == "__main__":
     ui.audiogramLayout.addWidget(ui.audiogramWidget)
 
     # Create initial sliders
-    max_freq = ui.samplingRate // 2
-    band_width = max_freq / 10
-    ranges = {f"Band {i}": [(i*band_width, (i+1)*band_width)] for i in range(10)}
-    createSliders(ui, ranges)
+    changeMode(ui, ui.current_mode)
 
     MainWindow.show()
     sys.exit(app.exec_())
-
 
