@@ -17,6 +17,8 @@ import sys
 import os
 
 
+
+
 # Add theme switching capability
 THEMES = {
     'DARK': {
@@ -774,6 +776,119 @@ STYLES['DIVIDER'] = f"""
     }}
 """
 
+# 1. Add hover tooltips for better usability
+TOOLTIPS = {
+    'browse': "Click to load an audio file (supports .wav, .mp3, .csv)",
+    'freq_domain': "Toggle between time and frequency domain visualization",
+    'mode': "Select equalizer mode for different frequency presets",
+    'spectogram': "Toggle spectrogram visibility",
+    'play_original': "Play the original unmodified audio",
+    'play_filtered': "Play the audio with current equalizer settings",
+    'export': "Export the modified audio as a new file",
+    'zoom_in': "Zoom in on the signal view",
+    'zoom_out': "Zoom out of the signal view",
+    'speed_up': "Increase playback speed",
+    'speed_down': "Decrease playback speed",
+    'reset': "Reset all equalizer settings"
+}
+
+# 2. Add loading animations
+LOADING_STYLE = f"""
+    QProgressBar {{
+        border: 2px solid {COLORS['accent']};
+        border-radius: 8px;
+        text-align: center;
+        color: {COLORS['text']};
+        background-color: {COLORS['secondary']};
+    }}
+    QProgressBar::chunk {{
+        background-color: {COLORS['accent']};
+        width: 10px; 
+        margin: 0.5px;
+    }}
+"""
+
+# 3. Add keyboard shortcuts
+SHORTCUTS = {
+    'play': 'Space',
+    'reset': 'R',
+    'zoom_in': 'Ctrl++',
+    'zoom_out': 'Ctrl+-',
+    'speed_up': ']',
+    'speed_down': '['
+}
+
+# Add these graph style enhancements
+GRAPH_STYLES = {
+    'AXIS': {
+        'color': COLORS['text'],
+        'width': 1.5
+    },
+    'GRID': {
+        'color': f"{COLORS['text']}33",  # 20% opacity
+        'width': 0.5
+    },
+    'CURVE': {
+        'original': {'color': '#7289DA', 'width': 2},
+        'modified': {'color': '#43B581', 'width': 2}
+    },
+    'LABELS': {
+        'color': COLORS['text'],
+        'size': '12pt'
+    },
+    'BACKGROUND': 'transparent'
+}
+
+
+
+def setup_tooltips(self):
+    """Add helpful tooltips to UI elements"""
+    self.browseFile.setToolTip(TOOLTIPS['browse'])
+    self.frequencyDomainButton.setToolTip(TOOLTIPS['freq_domain']) 
+    self.modeList.setToolTip(TOOLTIPS['mode'])
+    self.spectogramCheck.setToolTip(TOOLTIPS['spectogram'])
+    self.playOriginalSignal.setToolTip(TOOLTIPS['play_original'])
+    self.playFilteredSignal.setToolTip(TOOLTIPS['play_filtered'])
+    self.exportButton.setToolTip(TOOLTIPS['export'])
+    self.zoomIn.setToolTip(f"{TOOLTIPS['zoom_in']} ({SHORTCUTS['zoom_in']})")
+    self.zoomOut.setToolTip(f"{TOOLTIPS['zoom_out']} ({SHORTCUTS['zoom_out']})")
+    self.speedUp.setToolTip(f"{TOOLTIPS['speed_up']} ({SHORTCUTS['speed_up']})")
+    self.speedDown.setToolTip(f"{TOOLTIPS['speed_down']} ({SHORTCUTS['speed_down']})")
+    self.resetButton.setToolTip(f"{TOOLTIPS['reset']} ({SHORTCUTS['reset']})")
+
+def setup_shortcuts(self):
+    """Set up keyboard shortcuts"""
+    QtWidgets.QShortcut(QtGui.QKeySequence("Space"), self.centralwidget, lambda: togglePlaying(self))
+    QtWidgets.QShortcut(QtGui.QKeySequence("R"), self.centralwidget, lambda: resetSignal(self))
+    QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl++"), self.centralwidget, lambda: zoomingIn(self))
+    QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+-"), self.centralwidget, lambda: zoomingOut(self))
+    QtWidgets.QShortcut(QtGui.QKeySequence("]"), self.centralwidget, lambda: speedingUp(self))
+    QtWidgets.QShortcut(QtGui.QKeySequence("["), self.centralwidget, lambda: speedingDown(self))
+
+def show_loading(self, message="Loading..."):
+    """Show loading animation with message"""
+    self.loadingSpinner.setFormat(message)
+    self.loadingSpinner.show()
+    QtWidgets.QApplication.processEvents()
+
+def hide_loading(self):
+    """Hide loading animation"""
+    self.loadingSpinner.hide()
+
+# 5. Add status messages
+def show_status(self, message, duration=3000):
+    """Show temporary status message"""
+    self.statusbar = QtWidgets.QStatusBar()
+    self.statusbar.setStyleSheet(f"""
+        QStatusBar {{
+            background: {COLORS['secondary']};
+            color: {COLORS['text']};
+            padding: 5px;
+            border-top: 1px solid {COLORS['accent']};
+        }}
+    """)
+    self.setStatusBar(self.statusbar)
+    self.statusbar.showMessage(message, duration)
 
 def setup_sidebar(self):
     # Main sidebar frame
@@ -997,12 +1112,108 @@ class Ui_MainWindow(QMainWindow):
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
+    # Add these methods to the Ui_MainWindow class
+    def setup_graphs(self):
+        """Configure graph styling and behavior"""
+        
+        # Style both graphs
+        for graph in [self.graph1, self.graph2]:
+            # Background and border
+            graph.setBackground(GRAPH_STYLES['BACKGROUND'])
+            graph.setStyleSheet(f"""
+                border: 1px solid {COLORS['accent']};
+                border-radius: 10px;
+                padding: 10px;
+                background: rgba(26, 27, 30, 0.8);
+            """)
+            
+            # Configure axis appearance
+            axis_pen = pg.mkPen(color=GRAPH_STYLES['AXIS']['color'], 
+                            width=GRAPH_STYLES['AXIS']['width'])
+            graph.getAxis('bottom').setPen(axis_pen)
+            graph.getAxis('left').setPen(axis_pen)
+            
+            # Configure grid appearance
+            graph.showGrid(x=True, y=True)
+            grid_pen = pg.mkPen(color=GRAPH_STYLES['GRID']['color'], 
+                            width=GRAPH_STYLES['GRID']['width'])
+            graph.getAxis('bottom').setGrid(True)
+            graph.getAxis('left').setGrid(True)
+            
+            # Style axis labels
+            graph.getAxis('bottom').setLabel('Time (s)', 
+                                        color=GRAPH_STYLES['LABELS']['color'], 
+                                        size=GRAPH_STYLES['LABELS']['size'])
+            graph.getAxis('left').setLabel('Amplitude', 
+                                        color=GRAPH_STYLES['LABELS']['color'], 
+                                        size=GRAPH_STYLES['LABELS']['size'])
+            
+            # Add zoom region
+            self.region = pg.LinearRegionItem()
+            self.region.setZValue(10)
+            graph.addItem(self.region, ignoreBounds=True)
+            
+            # Add mouse interactions
+            graph.scene().sigMouseMoved.connect(self.mouse_moved)
+            
+        # Link x-axis between graphs
+        self.graph1.setXLink(self.graph2)
+        
+        # Add crosshair cursor
+        self.vLine = pg.InfiniteLine(angle=90, movable=False)
+        self.hLine = pg.InfiniteLine(angle=0, movable=False)
+        self.graph1.addItem(self.vLine, ignoreBounds=True)
+        self.graph1.addItem(self.hLine, ignoreBounds=True)
 
+    def mouse_moved(self, evt):
+        """Update crosshair position on mouse move"""
+        if self.graph1.sceneBoundingRect().contains(evt):
+            mouse_point = self.graph1.plotItem.vb.mapSceneToView(evt)
+            self.vLine.setPos(mouse_point.x())
+            self.hLine.setPos(mouse_point.y())
+            
+            # Show coordinates in status bar
+            self.show_status(f"Time: {mouse_point.x():.3f}s, Amplitude: {mouse_point.y():.3f}")
+
+    def plot_signals(self):
+        """Plot signals with enhanced styling"""
+        # Clear previous plots
+        self.graph1.clear()
+        self.graph2.clear()
+        
+        # Plot original signal
+        original_pen = pg.mkPen(color=GRAPH_STYLES['CURVE']['original']['color'],
+                            width=GRAPH_STYLES['CURVE']['original']['width'])
+        self.graph1.plot(self.signalTime, self.signalData, pen=original_pen)
+        
+        # Plot modified signal
+        modified_pen = pg.mkPen(color=GRAPH_STYLES['CURVE']['modified']['color'],
+                            width=GRAPH_STYLES['CURVE']['modified']['width'])
+        self.graph2.plot(self.signalTime, self.modifiedData, pen=modified_pen)
+        
+        # Add legend
+        self.graph1.addLegend()
+        self.graph1.plot(name='Original Signal', pen=original_pen)
+        self.graph2.addLegend()
+        self.graph2.plot(name='Modified Signal', pen=modified_pen)
+
+    # Add this to setupUi() after creating graphs
+    def enhance_graphs(self):
+        """Apply graph enhancements"""
+        self.setup_graphs()
+        
+        # Add to existing setupUi method:
+        self.setup_graphs()
+        
+        # Update the signalPlotting function call
+        def update_plots(self):
+            self.plot_signals()
 
 
 
     def LoadSignalFile(self):
         print("Lets Choose a file")
+        
         file_path = ""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Signal File", "", 
@@ -1011,6 +1222,7 @@ class Ui_MainWindow(QMainWindow):
         
         if file_path:
             try:
+                show_loading(self,"Loading signal file...")
                 deleteSignal(self)
                 self.cached = False  
                 # Stop any playing audio and timers
@@ -1080,12 +1292,13 @@ class Ui_MainWindow(QMainWindow):
                 # Store references
                 self.lastLoadedSignal = np.copy(self.signalData)
                 self.lastModifiedSignal = np.copy(self.modifiedData)
+                show_status(self,"File loaded successfully")
                 
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Error loading file: {str(e)}")
+                show_status(self,f"Error: {str(e)}", 5000)
             
             finally:
-                self.loadingSpinner.hide()
+                hide_loading(self)
 
     def load_csv_data(self, file_path):
         try:
@@ -1737,6 +1950,14 @@ class Ui_MainWindow(QMainWindow):
         #self.verticalLayout_2.insertWidget(self.verticalLayout_2.count() - 1, self.slidersContainer)
 
         setup_sidebar(self)
+
+        setup_tooltips(self)
+        setup_shortcuts(self)
+        
+        # Add status bar
+        show_status(self,"Ready")
+
+        self.enhance_graphs()
 
 
         
