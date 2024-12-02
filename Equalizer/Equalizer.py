@@ -839,7 +839,25 @@ GRAPH_STYLES = {
     'BACKGROUND': 'transparent'
 }
 
-
+DOMAIN_GRAPH_STYLES = {
+    'TIME': {
+        'color': '#7289DA',  # Discord blue for time domain
+        'width': 2,
+        'fill': '#7289DA33'  # Semi-transparent fill
+    },
+    'FREQ': {
+        'color': '#43B581',  # Discord green for frequency domain
+        'width': 2,
+        'fill': '#43B58133'  # Semi-transparent fill
+    },
+    'AXES': {
+        'text_color': COLORS['text'],
+        'grid_color': f"{COLORS['text']}22",
+        'label_size': '11pt',
+        'title_size': '12pt'
+    },
+    'BACKGROUND': 'transparent'
+}
 
 def setup_tooltips(self):
     """Add helpful tooltips to UI elements"""
@@ -1300,6 +1318,7 @@ class Ui_MainWindow(QMainWindow):
             finally:
                 hide_loading(self)
 
+    
     def load_csv_data(self, file_path):
         try:
             deleteSignal(self)
