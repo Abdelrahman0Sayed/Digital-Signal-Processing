@@ -6,7 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QMenu, QAction, QToolTip
 from functools import partial
-from Image_functions import loadImage, imageFourierTransform, displayFrequencyComponent
+from Image_functions import loadImage, imageFourierTransform, displayFrequencyComponent, unify_images , convert_data_to_image, convet_mixed_to_qImage
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,17 +37,26 @@ COLORS.update({
 })
 
 class ModernWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+    
+    def __init__(self, skip_setup_ui=False):
+        super().__init__()  # Prevent recursion in ModernWindow
+        self.skip_setup_ui = skip_setup_ui  # Assign to an instance attribute
+        self.minimum_size = (0, 0)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.viewers = []
+
         self.outputViewers = []
-        self._setup_ui()
+
+        print(self.skip_setup_ui)
+        if not skip_setup_ui:
+            print("Let's Call Function")
+            self.buildUI()
+
         self._setup_theme()
         self.oldPos = None
         self.controller = None
         self._setup_shortcuts()
-        self._setup_statusbar()
+        #self._setup_statusbar()
         self._setup_menus()
         
         self.undo_stack = []
@@ -184,6 +193,7 @@ class ModernWindow(QMainWindow):
         # Use direct method connection instead of lambda
         self.mix_button.clicked.connect(self.on_mix_button_clicked)
 
+
     def on_mix_button_clicked(self):
         try:
             print("Mix button clicked")
@@ -196,21 +206,21 @@ class ModernWindow(QMainWindow):
                 
             self.mix_button.setEnabled(False)
             self.mix_progress.show()
-            self.statusBar.showMessage("Mixing in progress...")
             
             # Collect and validate components
             components = []
             for viewer in self.viewers:
-                if viewer and hasattr(viewer, 'ft_components') and viewer.ft_components is not None:
+                if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
                     weight1 = viewer.weight1_slider.value() / 100.0
                     weight2 = viewer.weight2_slider.value() / 100.0
                     # Create copy of components to prevent deletion
                     components.append({
-                        'ft': viewer.ft_components.copy(),
+                        'ft': viewer.fftComponents.copy(),
                         'weight1': weight1,
                         'weight2': weight2
                     })
-                    print(f"Added component with weights: {weight1}, {weight2}")
+                    print(f"Added component with weights: {weight1}, {weight2} and Size: {viewer.imageData.shape}")
+                    
             
             if not components:
                 self.show_error("Please load images before mixing!")
@@ -219,37 +229,40 @@ class ModernWindow(QMainWindow):
             # Get mixing type and perform mix
             mix_type = self.mix_type.currentText()
             if mix_type == "Magnitude/Phase":
+                print("We Should Apply Magnitude / Phase Mixing")
                 result = mix_magnitude_phase(components)
+                print(result.shape)
             else:
+                print("We Should Apply Real / Imaginary Mixing")
                 result = mix_real_imaginary(components)
                 
             # Process result
             mixed_image = np.fft.ifft2(result)
+            print("1")
             mixed_image = np.abs(mixed_image)
+            print("2")
             mixed_image = ((mixed_image - mixed_image.min()) * 255 / 
                         (mixed_image.max() - mixed_image.min()))
+            print("3")
             mixed_image = mixed_image.astype(np.uint8)
-            
-            # Create and store QImage
-            height, width = mixed_image.shape
-            bytes_per_line = width
-            qImage = QImage(mixed_image.tobytes(), 
-                        width, 
-                        height,
-                        bytes_per_line,
-                        QImage.Format_Grayscale8).copy()  # Make explicit copy
-            
+            print("4")
+
+            qImage = convet_mixed_to_qImage(mixed_image)
+            if qImage is None:
+                print("Image is None")
+            print("5")
             # Create pixmap and ensure output viewer still exists
             if output_viewer and output_viewer.originalImageLabel:
                 pixmap = QPixmap.fromImage(qImage)
+                print("6")
                 output_viewer.originalImageLabel.setPixmap(pixmap.scaled(
                     output_viewer.originalImageLabel.size(),
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation
                 ))
-                
-            self.statusBar.showMessage("Mixing complete!", 3000)
-            
+                print(7)
+
+
         except Exception as e:
             print(f"Error during mixing: {str(e)}")
             self.show_error(f"Mixing failed: {str(e)}")
@@ -257,8 +270,9 @@ class ModernWindow(QMainWindow):
             self.mix_button.setEnabled(True)
             self.mix_progress.hide()
 
-    def _setup_ui(self):
+    def buildUI(self):
         # Main container
+        self._ui_initialized = True
         self.container = QWidget()
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -342,8 +356,6 @@ class ModernWindow(QMainWindow):
         
         left_layout.addLayout(viewers_grid)
         
-
-
 
 
 
@@ -563,14 +575,19 @@ class ModernWindow(QMainWindow):
 
 
 
-class ImageViewerWidget(QFrame):
+class ImageViewerWidget(ModernWindow):
     weightChanged = pyqtSignal(float, str)
-    
-    def __init__(self, title, window=None, is_output=False):
-        super().__init__()
+
+    def __init__(self, title, window=None, is_output=False):  
+        # Initialize ModernWindow with skip_setup_ui=True
+        
+        super().__init__(skip_setup_ui=True)
         self.setObjectName("imageViewer")
         self.window = window
-        self._image = None  # Use private attribute
+        self.is_output = is_output
+
+        # Viewer-specific attributes
+        self._image = None
         self._ft_components = None
         self._ft_magnitude = None
         self._ft_phase = None
@@ -578,29 +595,17 @@ class ImageViewerWidget(QFrame):
         self._ft_imaginary = None
         self.brightness = 0
         self.contrast = 1
-        self.is_output = is_output
-        self._setup_ui(title)
-        self._setup_animations()
         self.zoom_level = 1.0
-        self._setup_zoom_controls()
 
-        self.image = None
-        self.imageData = None
-        self.ft_components = None
-        self.ft_magnitude = None
-        self.ft_phase = None
-        self.ft_real = None
-        self.ft_imaginary = None
+        # Call the _setup_ui method specific to ImageViewerWidget
+        self.build_ui(title)
+        self._setup_animations()
 
-        
-        # Keep strong references
-        self._labels = []
-        if hasattr(self, 'originalImageLabel'):
-            self._labels.append(self.originalImageLabel)
-        if hasattr(self, 'ftComponentLabel'):
-            self._labels.append(self.ftComponentLabel)
-    def _setup_ui(self, title):
-        layout = QVBoxLayout(self)
+
+    def build_ui(self, title):
+        self.container = QWidget()
+        layout = QVBoxLayout(self.container)
+        self.setCentralWidget(self.container)
         layout.setContentsMargins(10, 10, 10, 10)
 
         # Header with title
@@ -615,7 +620,8 @@ class ImageViewerWidget(QFrame):
             # Single display for output viewers
             self.originalImageLabel = ImageDisplay()
             self.originalImageLabel.setAlignment(Qt.AlignCenter)
-            self.originalImageLabel.setMinimumSize(200, 200)
+            self.originalImageLabel.setMinimumSize(300, 300)
+            self.originalImageLabel.setMaximumSize(500,500)
             self.originalImageLabel.setStyleSheet("""
                 QLabel {
                     background-color: #1e1e1e;
@@ -632,7 +638,7 @@ class ImageViewerWidget(QFrame):
             original_label = QLabel("Original Image")
             self.originalImageLabel = ImageDisplay()
             self.originalImageLabel.setAlignment(Qt.AlignCenter)
-            self.originalImageLabel.setMinimumSize(200, 200)
+            self.originalImageLabel.setMinimumSize(300, 300)
             self.originalImageLabel.setStyleSheet("""
                 QLabel {
                     background-color: #1e1e1e;
@@ -654,14 +660,14 @@ class ImageViewerWidget(QFrame):
                 'FT Real',
                 'FT Imaginary'
             ])
-            # If the Data you want to plot is not the magnitude, you can change the default value here
-            self.component_selector.currentIndexChanged.connect(lambda: displayFrequencyComponent(self, self.component_selector.currentText()))
             self.component_selector.setToolTip("Select which Fourier component to view")
+            self.component_selector.currentIndexChanged.connect(lambda: displayFrequencyComponent(self, self.component_selector.currentText()))
+
             ft_section.addWidget(self.component_selector)
 
             self.ftComponentLabel = ImageDisplay()
             self.ftComponentLabel.setAlignment(Qt.AlignCenter)
-            self.ftComponentLabel.setMinimumSize(200, 200)
+            self.ftComponentLabel.setMinimumSize(300, 300)
             self.ftComponentLabel.setStyleSheet("""
                 QLabel {
                     background-color: #1e1e1e;
@@ -712,19 +718,41 @@ class ImageViewerWidget(QFrame):
         self.progress.hide()
         layout.addWidget(self.progress)
 
+    def _setup_zoom_controls(self):
+        zoom_layout = QHBoxLayout()
+        
+        zoom_out = QPushButton("-")
+        zoom_out.setFixedSize(24, 24)
+        zoom_out.clicked.connect(partial(self.adjust_zoom, -0.1))
+        
+        self.zoom_label = QLabel("100%")
+        self.zoom_label.setFixedWidth(50)
+        
+        zoom_in = QPushButton("+")
+        zoom_in.setFixedSize(24, 24)
+        zoom_in.clicked.connect(partial(self.adjust_zoom, 0.1))
+        
+        zoom_layout.addWidget(zoom_out)
+        zoom_layout.addWidget(self.zoom_label)
+        zoom_layout.addWidget(zoom_in)
+        
+        self.container.layout().addLayout(zoom_layout)
 
 
     def apply_effect(self):
-        try:
+        try:            
             self.originalImageLabel.showLoadingSpinner()
-            
             # Load image
-            self.qimage, self.imageData = loadImage(self)
-            if self.qimage is None or self.imageData is None:
+
+            self.image, self.imageData = loadImage(self)
+            self.qImage = convert_data_to_image(self.imageData)
+            if self.qImage is None or self.imageData is None:
                 raise Exception("Failed to load image")
+            print("Image Loaded")
                 
+            
             # Display original image
-            pixmapImage = QPixmap.fromImage(self.qimage)
+            pixmapImage = QPixmap.fromImage(self.qImage)
             label_height = int(self.originalImageLabel.height())
             label_width = int(self.originalImageLabel.width())
             pixmapImage = pixmapImage.scaled(
@@ -734,12 +762,12 @@ class ImageViewerWidget(QFrame):
             self.originalImageLabel.setPixmap(pixmapImage)
             
             # Compute and store Fourier transform
-            if not imageFourierTransform(self, self.imageData):
-                raise Exception("Failed to compute Fourier transform")
+            imageFourierTransform(self, self.imageData)
                 
             # Display frequency component
             displayFrequencyComponent(self, "FT Magnitude")
             
+
         except Exception as e:
             print(f"Error in apply_effect: {str(e)}")
             if hasattr(self.window, 'show_error'):

@@ -24,106 +24,176 @@ from PyQt5.QtGui import *
 from PIL import Image, ImageQt
 
 
+def loadImage(self):
+    try:
+        filePath, _ = QFileDialog.getOpenFileName(None, "Open Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)")
+        if filePath:
+            # Load the image
+            self.imageData = cv2.imread(filePath)
+            
+            # Convert to grayscale
+            grayScaledImage = cv2.cvtColor(self.imageData, cv2.COLOR_BGR2GRAY)
+            
+            # height, width = grayScaledImage.shape[:2]
+            # image_size = (width, height)
+            
+            # print(f"{image_size}")
+            
+            # if self.minimum_size == (0, 0):
+            #     # Set the minimum size for the first image
+            #     print("This is the First Image, setting new Minimum Size")
+            #     self.minimum_size = image_size
+            #     print(f"Minimum Size set to: {self.minimum_size}")
+
+            # # Check and update minimum size
+            # if image_size < self.minimum_size and image_size != 0:
+            #     print("Updating Minimum Size based on the new image")
+            #     self.minimum_size = image_size
+
+            unify_images(self, self.viewers)
+            self.imageData = cv2.resize(self.imageData, (300,300))
+        
+            return grayScaledImage, self.imageData
+        return 
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def unify_images(self, viewers):
+    print("Unifying Images")
+    for viewer in viewers:
+        if viewer.imageData is not None:
+            # Resize the image using cv2.resize
+            target_size = (self.minimum_size, self.minimum_size)  # Assuming square resizing
+            viewer.imageData = cv2.resize(viewer.imageData, target_size)
+            print(f"Image resized to: {viewer.imageData.shape}")
 
 
 
+    
 def convert_data_to_image(imageData):
     try:
         # Convert the image data to a QImage
         height, width, channel = imageData.shape
         bytesPerLine = 3 * width
         qImg = QtGui.QImage(imageData.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        if qImg is None:
+            print("Error in converting image data to QImage")
+    
         qImg = qImg.rgbSwapped()
         grayscale_qImg = qImg.convertToFormat(QtGui.QImage.Format_Grayscale8)
-
+        
         return grayscale_qImg
     except Exception as e:
         print(e)
 
 
+def imageFourierTransform(self, imageData):
+    fftComponents = np.fft.fft2(imageData)
+    fftComponentsShifted = np.fft.fftshift(fftComponents)
+    self.fftComponents= fftComponentsShifted
+    # Get Magnitude and Phase
+    self.ftMagnitudes = np.abs(fftComponentsShifted)
+    self.ftPhase = np.angle(fftComponentsShifted)
+    # Get the Real and Imaginary parts
+    self.ftReal = np.real(fftComponentsShifted)
+    self.ftImaginary = np.imag(fftComponentsShifted)
+    
 
-def loadImage(viewer):
-    filename, _ = QFileDialog.getOpenFileName(viewer, "Open Image", "", "Image Files (*.png *.jpg *.bmp)")
-    if filename:
-        # Read image in grayscale
-        imageData = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
-        if imageData is None:
-            return None, None
-            
-        # Convert to QImage
-        height, width = imageData.shape
-        bytesPerLine = width
-        qImage = QImage(imageData.data, width, height, bytesPerLine, QImage.Format_Grayscale8)
+
+def displayFrequencyComponent(self, PlottedComponent):
+    
+    if PlottedComponent == "FT Magnitude":
+        print("Plotting Magnitude")
+        # Take the Magnitude as log scale
+        ftLog = 15 * np.log(self.ftMagnitudes + 1e-10).astype(np.uint8)
+        ftNormalized = ftLog / ftLog.max() * 255
+        pil_image = Image.fromarray(np.uint8(ftNormalized)) 
+        qimage = convert_from_pil_to_qimage(pil_image)
+        qimage = qimage.convertToFormat(QImage.Format_Grayscale8)
+        pixmap = QPixmap.fromImage(qimage)
+        label_height = self.ftComponentLabel.height()
+        label_width = self.ftComponentLabel.width()
         
-        return qImage, imageData
-    return None, None
-
-def imageFourierTransform(viewer, imageData):
-    if imageData is not None:
-        try:
-            print("Computing Fourier transform...")
-            # Convert to grayscale if needed
-            if len(imageData.shape) > 2:
-                imageData = cv2.cvtColor(imageData, cv2.COLOR_BGR2GRAY)
-                
-            # Apply 2D FFT
-            f_transform = np.fft.fft2(imageData)
-            f_transform_shifted = np.fft.fftshift(f_transform)
-            
-            # Store components
-            viewer.ft_components = f_transform_shifted.copy()  # Store copy
-            viewer.ft_magnitude = np.abs(f_transform_shifted)
-            viewer.ft_phase = np.angle(f_transform_shifted)
-            viewer.ft_real = np.real(f_transform_shifted)
-            viewer.ft_imaginary = np.imag(f_transform_shifted)
-            
-            print("Fourier transform computed successfully")
-            return True
-            
-        except Exception as e:
-            print(f"Error in Fourier transform: {str(e)}")
-            return False
-    return False
-
-def displayFrequencyComponent(viewer, component_type):
-    if not hasattr(viewer, 'ft_components') or viewer.ft_components is None:
-        return
+        pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.ftComponentLabel.setPixmap(pixmap)
         
-    # Get the appropriate component
-    if component_type == 'FT Magnitude':
-        display_data = np.log(1 + np.abs(viewer.ft_magnitude))
-    elif component_type == 'FT Phase':
-        display_data = viewer.ft_phase
-    elif component_type == 'FT Real':
-        display_data = np.log(1 + np.abs(viewer.ft_real))
-    elif component_type == 'FT Imaginary':
-        display_data = np.log(1 + np.abs(viewer.ft_imaginary))
+    elif PlottedComponent == "FT Phase":
+        print("Plotting Phase")
+        # Ensure phase is within -pi to pi range and Ajdust for visualization (between 0 - 255)
+        f_wrapped = np.angle(np.exp(1j * self.ftPhase))  
+        f_normalized = (f_wrapped + np.pi) / (2 * np.pi) * 255
+        
+        pil_image = Image.fromarray(np.uint8(f_normalized)) 
+        qimage = convert_from_pil_to_qimage(pil_image)
+        qimage = qimage.convertToFormat(QImage.Format_Grayscale8)
+        pixmap = QPixmap.fromImage(qimage)
+        label_height = self.ftComponentLabel.height()
+        label_width = self.ftComponentLabel.width()
+        
+        pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.ftComponentLabel.setPixmap(pixmap)
     
-    # Normalize to 0-255 range
-    display_data = ((display_data - display_data.min()) * 255 
-                   / (display_data.max() - display_data.min()))
-    display_data = display_data.astype(np.uint8)
+    elif PlottedComponent == "FT Real":
+        print("Plotting Real")
+        
+        # Normalization and Adjustment for visualization
+        ftNormalized = np.abs(self.ftReal)
+        
+        
+        pil_image = Image.fromarray(np.uint8(ftNormalized)) 
+        qimage = convert_from_pil_to_qimage(pil_image)
+        qimage = qimage.convertToFormat(QImage.Format_Grayscale8)
+        pixmap = QPixmap.fromImage(qimage)
+        label_height = self.ftComponentLabel.height()
+        label_width = self.ftComponentLabel.width()
+        
+        pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.ftComponentLabel.setPixmap(pixmap)
+    elif PlottedComponent == "FT Imaginary":
+        print("FT Imaginary")
+        
+        ftNormalized = np.abs(self.ftImaginary)
+        
+        
+        pil_image = Image.fromarray(np.uint8(ftNormalized)) 
+        qimage = convert_from_pil_to_qimage(pil_image)
+        qimage = qimage.convertToFormat(QImage.Format_Grayscale8)
+        pixmap = QPixmap.fromImage(qimage)
+        label_height = self.ftComponentLabel.height()
+        label_width = self.ftComponentLabel.width()
+        
+        pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.ftComponentLabel.setPixmap(pixmap)
     
-    # Convert to QImage - Fix: Convert numpy array to bytes
-    height, width = display_data.shape
-    bytes_per_line = width
-    
-    # Create QImage from the numpy array's buffer
-    qImage = QImage(display_data.tobytes(), 
-                   width, 
-                   height,
-                   bytes_per_line,
-                   QImage.Format_Grayscale8)
-    
-    # Display in the FT component label
-    pixmap = QPixmap.fromImage(qImage)
-    viewer.ftComponentLabel.setPixmap(pixmap.scaled(
-        viewer.ftComponentLabel.size(),
-        Qt.KeepAspectRatio,
-        Qt.SmoothTransformation
-    ))
-    
+
+
+
 def convert_from_pil_to_qimage(pilImage):
         img_data = pilImage.tobytes()
         qimage = QImage(img_data, pilImage.width, pilImage.height, pilImage.width * 3, QImage.Format_RGB888)
         return qimage
+
+
+def convet_mixed_to_qImage(imageData):
+    try:
+        # Convert the image data to a QImage
+        height, width, channel = imageData.shape
+        bytesPerLine = 3 * width
+        
+        # Convert memoryview to bytes
+        image_bytes = imageData.tobytes()
+        
+        # Create the QImage
+        qImg = QtGui.QImage(image_bytes, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        
+        if qImg.isNull():  # Check if the QImage is valid
+            print("Error in converting image data to QImage")
+        else:
+            # Convert to grayscale if needed
+            qImg = qImg.rgbSwapped()
+            grayscale_qImg = qImg.convertToFormat(QtGui.QImage.Format_Grayscale8)
+            return grayscale_qImg
+        
+    except Exception as e:
+        print(e)

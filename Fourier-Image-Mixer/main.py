@@ -6,7 +6,7 @@ from MixerUI import MainController, SliderWithTooltip, InfoButton, QProgressIndi
 class MainWindow(ModernWindow):
     def __init__(self):
         super().__init__()
-        self._setup_ui()
+        self.buildUI()
         self.controller = MainController(self)  # Set controller after window creation
         
 

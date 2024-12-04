@@ -2,6 +2,8 @@ import numpy as np
 
 def mix_magnitude_phase(components):
     try:
+
+        print("Start Mixing")
         first_ft = components[0]['ft']
         result = np.zeros_like(first_ft, dtype=complex)
         
@@ -11,16 +13,20 @@ def mix_magnitude_phase(components):
             weight = comp['weight1']
             magnitude = np.abs(comp['ft'])
             total_magnitude += weight * magnitude
-        
+        print("Magnitude Done")
+
         # Mix phases
         total_phase = np.zeros_like(np.angle(first_ft))
         for comp in components:
             weight = comp['weight2']
             phase = np.angle(comp['ft'])
             total_phase += weight * phase
-        
+        print("Phase Done")
+
         # Combine magnitude and phase
         result = total_magnitude * np.exp(1j * total_phase)
+        print("Mixing Done")
+        
         return result
         
     except Exception as e:
