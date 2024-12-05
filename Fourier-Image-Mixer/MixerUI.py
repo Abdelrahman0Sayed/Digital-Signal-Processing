@@ -236,31 +236,21 @@ class ModernWindow(QMainWindow):
                 print("We Should Apply Real / Imaginary Mixing")
                 result = mix_real_imaginary(components)
                 
-            # Process result
-            mixed_image = np.fft.ifft2(result)
-            print("1")
+            # Cause of the data doesn't apply Shifting of zero by default
+            mixed_image = np.fft.ifftshift(result)
+            mixed_image = np.fft.ifft2(mixed_image)
+
             mixed_image = np.abs(mixed_image)
-            print("2")
-            mixed_image = ((mixed_image - mixed_image.min()) * 255 / 
-                        (mixed_image.max() - mixed_image.min()))
-            print("3")
+            mixed_image = ((mixed_image - mixed_image.min()) * 255 / (mixed_image.max() - mixed_image.min()))
             mixed_image = mixed_image.astype(np.uint8)
-            print("4")
 
             qImage = convet_mixed_to_qImage(mixed_image)
             if qImage is None:
                 print("Image is None")
-            print("5")
-            # Create pixmap and ensure output viewer still exists
+
             if output_viewer and output_viewer.originalImageLabel:
                 pixmap = QPixmap.fromImage(qImage)
-                print("6")
-                output_viewer.originalImageLabel.setPixmap(pixmap.scaled(
-                    output_viewer.originalImageLabel.size(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation
-                ))
-                print(7)
+                output_viewer.originalImageLabel.setPixmap(pixmap.scaled(300, 300 ,Qt.KeepAspectRatio))
 
 
         except Exception as e:
@@ -621,7 +611,7 @@ class ImageViewerWidget(ModernWindow):
             self.originalImageLabel = ImageDisplay()
             self.originalImageLabel.setAlignment(Qt.AlignCenter)
             self.originalImageLabel.setMinimumSize(300, 300)
-            self.originalImageLabel.setMaximumSize(500,500)
+            self.originalImageLabel.setMaximumSize(300, 300)
             self.originalImageLabel.setStyleSheet("""
                 QLabel {
                     background-color: #1e1e1e;
@@ -695,11 +685,11 @@ class ImageViewerWidget(ModernWindow):
             
             self.weight1_slider = QSlider(Qt.Horizontal)
             self.weight1_slider.setRange(0, 100)
-            self.weight1_slider.setValue(50)
+            self.weight1_slider.setValue(100)
 
             self.weight2_slider = QSlider(Qt.Horizontal)
-            self.weight2_slider.setRange(0, 100)
-            self.weight2_slider.setValue(50)
+            self.weight2_slider.setRange(-100, 100)
+            self.weight2_slider.setValue(0)
 
             weight_layout.addWidget(self.weight1_label)
             weight_layout.addWidget(self.weight1_slider)
