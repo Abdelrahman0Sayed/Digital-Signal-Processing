@@ -34,29 +34,20 @@ def loadImage(self):
             # Convert to grayscale
             grayScaledImage = cv2.cvtColor(self.imageData, cv2.COLOR_BGR2GRAY)
             
-            # height, width = grayScaledImage.shape[:2]
-            # image_size = (width, height)
-            
-            # print(f"{image_size}")
-            
-            # if self.minimum_size == (0, 0):
-            #     # Set the minimum size for the first image
-            #     print("This is the First Image, setting new Minimum Size")
-            #     self.minimum_size = image_size
-            #     print(f"Minimum Size set to: {self.minimum_size}")
-
-            # # Check and update minimum size
-            # if image_size < self.minimum_size and image_size != 0:
-            #     print("Updating Minimum Size based on the new image")
-            #     self.minimum_size = image_size
 
             unify_images(self, self.viewers)
-            self.imageData = cv2.resize(self.imageData, (300,300))
+            self.imageData = cv2.resize(self.imageData, (600,600))
         
             return grayScaledImage, self.imageData
         return 
     except Exception as e:
         print(f"Error: {e}")
+
+
+
+
+
+
 
 
 def unify_images(self, viewers):
@@ -71,6 +62,11 @@ def unify_images(self, viewers):
 
 
     
+
+
+
+
+
 def convert_data_to_image(imageData):
     try:
         # Convert the image data to a QImage
@@ -88,6 +84,12 @@ def convert_data_to_image(imageData):
         print(e)
 
 
+
+
+
+
+
+
 def imageFourierTransform(self, imageData):
     fftComponents = np.fft.fft2(imageData)
     fftComponentsShifted = np.fft.fftshift(fftComponents)
@@ -101,8 +103,15 @@ def imageFourierTransform(self, imageData):
     
 
 
+
+
+
+
 def displayFrequencyComponent(self, PlottedComponent):
-    
+    # Chnage all Selectors to the current component
+    for viewer in self.viewers:
+        viewer.imageWidget.component_selector.setCurrentText(PlottedComponent)
+        
     if PlottedComponent == "FT Magnitude":
         print("Plotting Magnitude")
         # Take the Magnitude as log scale
@@ -117,8 +126,14 @@ def displayFrequencyComponent(self, PlottedComponent):
         label_width = self.ftComponentLabel.width()
         
         pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.magnitudeImage = pixmap
         self.ftComponentLabel.setPixmap(pixmap)
         
+
+
+
+
+
     elif PlottedComponent == "FT Phase":
         print("Plotting Phase")
         # Ensure phase is within -pi to pi range and Ajdust for visualization (between 0 - 255)
@@ -134,6 +149,8 @@ def displayFrequencyComponent(self, PlottedComponent):
         label_width = self.ftComponentLabel.width()
         
         pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.phaseImage = pixmap
+        
         self.ftComponentLabel.setPixmap(pixmap)
     
     elif PlottedComponent == "FT Real":
@@ -152,6 +169,8 @@ def displayFrequencyComponent(self, PlottedComponent):
         label_width = self.ftComponentLabel.width()
         
         pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.realImage = pixmap
+        
         self.ftComponentLabel.setPixmap(pixmap)
     elif PlottedComponent == "FT Imaginary":
         print("FT Imaginary")
@@ -168,8 +187,12 @@ def displayFrequencyComponent(self, PlottedComponent):
         label_width = self.ftComponentLabel.width()
         
         pixmap = pixmap.scaled(label_height, label_width, Qt.KeepAspectRatio)
+        self.imaginaryImage = pixmap
         self.ftComponentLabel.setPixmap(pixmap)
     
+
+
+
 
 
 
@@ -177,6 +200,11 @@ def convert_from_pil_to_qimage(pilImage):
         img_data = pilImage.tobytes()
         qimage = QImage(img_data, pilImage.width, pilImage.height, pilImage.width * 3, QImage.Format_RGB888)
         return qimage
+
+
+
+
+
 
 
 def convet_mixed_to_qImage(imageData):

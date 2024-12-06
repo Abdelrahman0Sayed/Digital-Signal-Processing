@@ -1,8 +1,13 @@
 import numpy as np
 
-def mix_magnitude_phase(components):
+# Done by ModernWindow
+def mix_magnitude_phase(self, components, regionSize):
     try:
-        
+        if self.inner_region.isChecked():
+            # We Should only mix the inner region
+            print("Mixing Inner Region")
+
+            pass
         print("Start Mixing")
         first_ft = components[0]['ft']
         result = np.zeros_like(first_ft, dtype=complex)
@@ -33,7 +38,12 @@ def mix_magnitude_phase(components):
         print(f"Error in magnitude/phase mixing: {str(e)}")
         raise
 
-def mix_real_imaginary(components):
+
+
+
+
+
+def mix_real_imaginary(self, components):
     try:
         first_ft = components[0]['ft']
         result = np.zeros_like(first_ft, dtype=complex)
@@ -53,3 +63,4 @@ def mix_real_imaginary(components):
     except Exception as e:
         print(f"Error in real/imaginary mixing: {str(e)}")
         raise
+

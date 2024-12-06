@@ -15,18 +15,20 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from mixer_functions import mix_magnitude_phase, mix_real_imaginary
+from control_functions import draw_rectangle, clear_rectangle
 
 
 
 # Define color palette
 COLORS = {
-    'background': '#1e1e1e',
+    'background': '#2a292c',
     'surface': '#252526',
     'primary': '#007ACC',
-    'secondary': '#3E3E42',
+    'secondary': '#007acc', 
     'text': '#CCCCCC',
-    'border': '#323232'
+    'border': '#ffffff'
 }
+
 
 # Add to COLORS dictionary
 COLORS.update({
@@ -36,14 +38,21 @@ COLORS.update({
     'info': '#29B6F6'
 })
 
+
+
+
 class ModernWindow(QMainWindow):
     
-    def __init__(self, skip_setup_ui=False):
-        super().__init__()  # Prevent recursion in ModernWindow
-        self.skip_setup_ui = skip_setup_ui  # Assign to an instance attribute
+    def __init__(self, imageWidget=None , skip_setup_ui=False):
+        super().__init__() 
+        self.skip_setup_ui = skip_setup_ui  
         self.minimum_size = (0, 0)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.imageWidget = imageWidget
         self.viewers = []
+        self.rectSize = 0
+
+    
 
         self.outputViewers = []
 
@@ -230,11 +239,11 @@ class ModernWindow(QMainWindow):
             mix_type = self.mix_type.currentText()
             if mix_type == "Magnitude/Phase":
                 print("We Should Apply Magnitude / Phase Mixing")
-                result = mix_magnitude_phase(components)
+                result = mix_magnitude_phase(self, components)
                 print(result.shape)
             else:
                 print("We Should Apply Real / Imaginary Mixing")
-                result = mix_real_imaginary(components)
+                result = mix_real_imaginary(self, components)
                 
             # Cause of the data doesn't apply Shifting of zero by default
             mixed_image = np.fft.ifftshift(result)
@@ -283,7 +292,7 @@ class ModernWindow(QMainWindow):
         title_bar_layout.setSpacing(4)
 
         title = QLabel("Fourier Transform Mixer")
-        title.setStyleSheet(f"color: {COLORS['text']}; font-size: 12px;")
+        title.setStyleSheet(f"color: {COLORS['text']}; font-size: 20px;")
 
         # Window controls
         controls = QWidget()
@@ -291,11 +300,11 @@ class ModernWindow(QMainWindow):
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(4)
 
-        for btn_data in [("⚊", self.showMinimized), 
-                ("☐", self.toggleMaximized),
-                ("✕", self.close)]:
+        for btn_data in [(" ⚊ ", self.showMinimized), 
+                (" ☐ ", self.toggleMaximized),
+                ("✕     انطر ابلكاش", self.close)]:
             btn = QPushButton(btn_data[0])
-            btn.setFixedSize(24, 24)
+            btn.setFixedSize(124, 24)
             btn.clicked.connect(btn_data[1])
             
             # Set object name based on button type
@@ -359,8 +368,9 @@ class ModernWindow(QMainWindow):
         # Output viewers
         output_group = QGroupBox("Output Viewers")
         output_layout = QVBoxLayout(output_group)
+
         for i in range(2):
-            viewer = ImageViewerWidget(f"Output {i+1}", is_output=True)
+            viewer = ImageViewerWidget(f"Mixer Output {i+1}", is_output=True)
             self.outputViewers.append(viewer)
             output_layout.addWidget(viewer)
         output_group.setLayout(output_layout)  # Set the layout for group box
@@ -368,21 +378,26 @@ class ModernWindow(QMainWindow):
         # Region selection controls
         region_group = QGroupBox("Region Selection")
         region_layout = QVBoxLayout(region_group)
-        
         region_controls = QWidget()
         region_controls_layout = QHBoxLayout(region_controls)
         
+
         self.inner_region = QRadioButton("Inner")
         self.outer_region = QRadioButton("Outer")
         self.inner_region.setChecked(True)
         
+
         self.region_size = QSlider(Qt.Horizontal)
         self.region_size.setRange(1, 100)
-        self.region_size.setValue(50)
+        self.region_size.setValue(0)
+        self.region_size.setSingleStep(5)  # Set the step size to 5
+        self.region_size.valueChanged.connect(lambda: draw_rectangle(self, self.viewers, self.region_size.value()))
         self.region_size.setToolTip("Adjust the size of selected region")
         
+
         self.deselect_btn = QPushButton("Clear Selection")
-        
+        self.deselect_btn.clicked.connect(lambda: clear_rectangle(self, self.viewers))
+
         region_controls_layout.addWidget(self.inner_region)
         region_controls_layout.addWidget(self.outer_region)
         region_controls_layout.addWidget(self.region_size)
@@ -571,13 +586,19 @@ class ImageViewerWidget(ModernWindow):
     def __init__(self, title, window=None, is_output=False):  
         # Initialize ModernWindow with skip_setup_ui=True
         
-        super().__init__(skip_setup_ui=True)
+        super().__init__(self, skip_setup_ui=True)
         self.setObjectName("imageViewer")
         self.window = window
         self.is_output = is_output
 
         # Viewer-specific attributes
-        self._image = None
+        self.imageData = None
+        
+        self.magnitudeImage = None
+        self.phaseImage = None
+        self.realImage = None
+        self.imaginaryImage = None
+        
         self._ft_components = None
         self._ft_magnitude = None
         self._ft_phase = None
@@ -641,6 +662,9 @@ class ImageViewerWidget(ModernWindow):
             original_section.addWidget(self.originalImageLabel)
             displays_layout.addLayout(original_section)
 
+
+
+
             # FT Component section (right)
             ft_section = QVBoxLayout()
             self.component_selector = QComboBox()
@@ -689,7 +713,7 @@ class ImageViewerWidget(ModernWindow):
 
             self.weight2_slider = QSlider(Qt.Horizontal)
             self.weight2_slider.setRange(-100, 100)
-            self.weight2_slider.setValue(0)
+            self.weight2_slider.setValue(100)
 
             weight_layout.addWidget(self.weight1_label)
             weight_layout.addWidget(self.weight1_slider)
@@ -751,10 +775,7 @@ class ImageViewerWidget(ModernWindow):
             )
             self.originalImageLabel.setPixmap(pixmapImage)
             
-            # Compute and store Fourier transform
-            imageFourierTransform(self, self.imageData)
-                
-            # Display frequency component
+            imageFourierTransform(self, self.imageData)                
             displayFrequencyComponent(self, "FT Magnitude")
             
 
@@ -1078,7 +1099,7 @@ class InfoButton(QPushButton):
                 background: {COLORS['info']};
                 border-radius: 8px;
                 color: white;
-                font-size: 10px;
+                font-size: 20px;
             }}
             QPushButton:hover {{
                 background: {COLORS['primary']};
