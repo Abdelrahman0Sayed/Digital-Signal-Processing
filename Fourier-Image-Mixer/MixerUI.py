@@ -216,15 +216,36 @@ class ModernWindow(QMainWindow):
             self.mix_button.setEnabled(False)
             self.mix_progress.show()
             
+            print()
+
             # Collect and validate components
             components = []
             for viewer in self.viewers:
                 if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
+                    ftComponents = []
+                    if self.rectSize == 0:
+                        ftComponents = viewer.fftComponents
+                    else:
+                        if self.inner_region.isChecked():
+                                print("Let's Mix Inner Region")
+                                print("The Size of the Rectangle is: ", self.rectSize)
+                                data_percentage = self.rectSize / 300
+                                ftComponents = viewer.fftComponents[:int(600 * data_percentage), :int(600 * data_percentage)]
+                                print("The Size of the Original Data is: ", viewer.fftComponents.shape)
+                                print("The Size of the Data is: ", ftComponents.shape)
+                        else:
+                                print("Let's Mix Inner Region")
+                                print("The Size of the Rectangle is: ", self.rectSize)
+                                data_percentage = self.rectSize / 300
+                                ftComponents = viewer.fftComponents[int(600 * data_percentage):, int(600 * data_percentage):]
+                                print("The Size of the Original Data is: ", viewer.fftComponents.shape)
+                                print("The Size of the Data is: ", ftComponents.shape)
+
                     weight1 = viewer.weight1_slider.value() / 100.0
                     weight2 = viewer.weight2_slider.value() / 100.0
-                    # Create copy of components to prevent deletion
+                    
                     components.append({
-                        'ft': viewer.fftComponents.copy(),
+                        'ft': ftComponents.copy(),
                         'weight1': weight1,
                         'weight2': weight2
                     })
@@ -243,7 +264,7 @@ class ModernWindow(QMainWindow):
                 print(result.shape)
             else:
                 print("We Should Apply Real / Imaginary Mixing")
-                result = mix_real_imaginary(self, components)
+                result =  mix_real_imaginary(self, components)
                 
             # Cause of the data doesn't apply Shifting of zero by default
             mixed_image = np.fft.ifftshift(result)
@@ -388,7 +409,7 @@ class ModernWindow(QMainWindow):
         
 
         self.region_size = QSlider(Qt.Horizontal)
-        self.region_size.setRange(1, 100)
+        self.region_size.setRange(1, 300)
         self.region_size.setValue(0)
         self.region_size.setSingleStep(5)  # Set the step size to 5
         self.region_size.valueChanged.connect(lambda: draw_rectangle(self, self.viewers, self.region_size.value()))
@@ -593,7 +614,8 @@ class ImageViewerWidget(ModernWindow):
 
         # Viewer-specific attributes
         self.imageData = None
-        
+        self.qImage = None
+
         self.magnitudeImage = None
         self.phaseImage = None
         self.realImage = None
@@ -604,8 +626,12 @@ class ImageViewerWidget(ModernWindow):
         self._ft_phase = None
         self._ft_real = None
         self._ft_imaginary = None
-        self.brightness = 0
-        self.contrast = 1
+        
+        self.brightness = 0  
+        self.contrast = 0
+        self.dragging = False
+        self.last_mouse_pos = None
+        self.last_pos = None
         self.zoom_level = 1.0
 
         # Call the _setup_ui method specific to ImageViewerWidget
@@ -731,6 +757,69 @@ class ImageViewerWidget(ModernWindow):
         self.progress.setTextVisible(True)
         self.progress.hide()
         layout.addWidget(self.progress)
+
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self.originalImageLabel.underMouse():
+            self.dragging = True
+            self.last_pos = event.pos()  
+    
+    def mouseMoveEvent(self, event):
+        if self.last_pos is None:
+            self.last_pos = event.pos() 
+
+        delta_x = event.pos().x() - self.last_pos.x()
+        delta_y = event.pos().y() - self.last_pos.y()
+
+        # Adjust brightness and contrast based on mouse movement
+        newImageData = self.adjust_brightness_contrast(delta_y / 100, delta_x / 100)
+
+        # Update last position for the next event
+        self.last_pos = event.pos()
+
+        imageFourierTransform(self, newImageData)
+        displayFrequencyComponent(self, self.component_selector.currentText())
+
+
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+
+
+
+    def adjust_brightness_contrast(self, brightness_delta, contrast_delta):
+        # Update brightness and contrast values
+        self.brightness = max(min(self.brightness + brightness_delta, 1), -1)
+        self.contrast = max(min(self.contrast + contrast_delta, 3), 0.1)
+
+        print(f"Brightness: {self.brightness}, Contrast: {self.contrast}")
+
+        if self.imageData is not None:
+            print("Adjusting image brightness and contrast...")
+
+            # Apply contrast and brightness adjustments
+            adjusted_image = self.imageData * self.contrast + (self.brightness * 255)
+            adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
+
+            # Convert NumPy array back to QImage
+            height, width, channel = adjusted_image.shape
+            bytes_per_line = 3 * width
+            q_image = QImage(adjusted_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+            # Convert to grayscale if needed (optional step, remove if not desired)
+            q_image = q_image.convertToFormat(QImage.Format_Grayscale8)
+
+            # Update QLabel display
+            pixmap_image = QPixmap.fromImage(q_image)
+            label_width = self.originalImageLabel.width()
+            label_height = self.originalImageLabel.height()
+            pixmap_image = pixmap_image.scaled(label_width, label_height, Qt.KeepAspectRatio)
+            self.originalImageLabel.setPixmap(pixmap_image)
+
+            return adjusted_image
+
+
 
     def _setup_zoom_controls(self):
         zoom_layout = QHBoxLayout()
@@ -928,48 +1017,48 @@ class ImageDisplay(QLabel):
         pass
 
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.last_pos = event.pos()
+    # def mousePressEvent(self, event):
+    #     if event.button() == Qt.LeftButton:
+    #         self.last_pos = event.pos()
             
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton and self.last_pos:
-            # Vertical movement controls brightness
-            delta_y = event.pos().y() - self.last_pos.y()
-            # Horizontal movement controls contrast
-            delta_x = event.pos().x() - self.last_pos.x()
+    # def mouseMoveEvent(self, event):
+    #     if event.buttons() == Qt.LeftButton and self.last_pos:
+    #         # Vertical movement controls brightness
+    #         delta_y = event.pos().y() - self.last_pos.y()
+    #         # Horizontal movement controls contrast
+    #         delta_x = event.pos().x() - self.last_pos.x()
             
-            self.adjust_brightness_contrast(delta_y/100, delta_x/100)
-            self.last_pos = event.pos()
+    #         self.adjust_brightness_contrast(delta_y/100, delta_x/100)
+    #         self.last_pos = event.pos()
     
     
-    def adjust_brightness_contrast(self, brightness_delta, contrast_delta):
-        self.brightness += brightness_delta
-        self.contrast += contrast_delta
+    # def adjust_brightness_contrast(self, brightness_delta, contrast_delta):
+    #     self.brightness += brightness_delta
+    #     self.contrast += contrast_delta
 
-        # Ensure brightness and contrast are within valid ranges
-        self.brightness = max(min(self.brightness, 1), -1)
-        self.contrast = max(min(self.contrast, 3), 0.1)
+    #     # Ensure brightness and contrast are within valid ranges
+    #     self.brightness = max(min(self.brightness, 1), -1)
+    #     self.contrast = max(min(self.contrast, 3), 0.1)
 
-        # Apply brightness and contrast adjustments to the image
-        if self.parent().imageData is not None:
-            # Change Image Data Depends On the Brightness and Contrast
-            self.parent().imageData = self.parent().imageData * self.contrast + self.brightness
-            self.parent().imageData = np.clip(self.parent().imageData, 0, 255).astype(np.uint8)
+    #     # Apply brightness and contrast adjustments to the image
+    #     if self.imageData is not None:
+    #         # Change Image Data Depends On the Brightness and Contrast
+    #         self.imageData = self.imageData * self.contrast + self.brightness
+    #         self.imageData = np.clip(self.imageData, 0, 255).astype(np.uint8)
             
-            height, width, channel = self.parent().imageData.shape
-            bytesPerLine = 3 * width    
-            qImage = QtGui.QImage(self.parent().imageData.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
-            qImage = qImage.convertToFormat(QImage.Format_Grayscale8)
+    #         height, width, channel = self.imageData.shape
+    #         bytesPerLine = 3 * width    
+    #         qImage = QtGui.QImage(self.imageData.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+    #         qImage = qImage.convertToFormat(QImage.Format_Grayscale8)
             
-            pixmapImage = QPixmap.fromImage(qImage)
-            pixmapImage = pixmapImage.scaled(self.width(), self.height(), aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio)
+    #         pixmapImage = QPixmap.fromImage(qImage)
+    #         pixmapImage = pixmapImage.scaled(self.width(), self.height(), aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio)
 
-            self.parent().originalImageLabel.setPixmap(pixmapImage)
+    #         self.originalImageLabel.setPixmap(pixmapImage)
 
-            # Update Image Data
-            imageFourierTransform(self.parent(), self.parent().imageData)
-            displayFrequencyComponent(self.parent(), self.parent().component_selector.currentText())
+    #         # # Update Image Data
+    #         # imageFourierTransform(self.parent(), self.parent().imageData)
+    #         # displayFrequencyComponent(self.parent(), self.parent().component_selector.currentText())
 
 
     def mouseReleaseEvent(self, event):

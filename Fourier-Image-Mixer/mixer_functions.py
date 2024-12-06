@@ -1,17 +1,13 @@
 import numpy as np
 
 # Done by ModernWindow
-def mix_magnitude_phase(self, components, regionSize):
+def mix_magnitude_phase(self, components):
+    
     try:
-        if self.inner_region.isChecked():
-            # We Should only mix the inner region
-            print("Mixing Inner Region")
-
-            pass
         print("Start Mixing")
         first_ft = components[0]['ft']
         result = np.zeros_like(first_ft, dtype=complex)
-        
+        print(1)
         # Mix magnitudes
         total_magnitude = np.zeros_like(np.abs(first_ft))
         for comp in components:
@@ -19,7 +15,7 @@ def mix_magnitude_phase(self, components, regionSize):
             magnitude = np.abs(comp['ft'])
             total_magnitude += weight * magnitude
         print("Magnitude Done")
-
+        print(2)
         # Mix phases
         total_phase = np.zeros_like(np.angle(first_ft))
         for comp in components:
@@ -64,3 +60,6 @@ def mix_real_imaginary(self, components):
         print(f"Error in real/imaginary mixing: {str(e)}")
         raise
 
+
+def get_rectangle_data(self):
+    pass

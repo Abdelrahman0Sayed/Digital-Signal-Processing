@@ -113,7 +113,6 @@ def displayFrequencyComponent(self, PlottedComponent):
         viewer.imageWidget.component_selector.setCurrentText(PlottedComponent)
         
     if PlottedComponent == "FT Magnitude":
-        print("Plotting Magnitude")
         # Take the Magnitude as log scale
         ftMagnitudesShifted = np.fft.fftshift(self.ftMagnitudes)
         ftLog = 15 * np.log(ftMagnitudesShifted + 1e-10).astype(np.uint8)
@@ -135,7 +134,6 @@ def displayFrequencyComponent(self, PlottedComponent):
 
 
     elif PlottedComponent == "FT Phase":
-        print("Plotting Phase")
         # Ensure phase is within -pi to pi range and Ajdust for visualization (between 0 - 255)
         ftPhaseShifted = np.fft.fftshift(self.ftPhase)
         f_wrapped = np.angle(np.exp(1j * ftPhaseShifted))  
@@ -154,7 +152,6 @@ def displayFrequencyComponent(self, PlottedComponent):
         self.ftComponentLabel.setPixmap(pixmap)
     
     elif PlottedComponent == "FT Real":
-        print("Plotting Real")
         
         # Normalization and Adjustment for visualization
         ftRealShifted = np.fft.fftshift(self.ftReal)
@@ -173,7 +170,6 @@ def displayFrequencyComponent(self, PlottedComponent):
         
         self.ftComponentLabel.setPixmap(pixmap)
     elif PlottedComponent == "FT Imaginary":
-        print("FT Imaginary")
         ftImaginary = np.fft.fftshift(self.ftImaginary)
         ftNormalized = np.abs(ftImaginary)
         
