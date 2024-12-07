@@ -12,6 +12,9 @@ import matplotlib as mpl
 from typing import List, Dict
 from dataclasses import dataclass
 from enum import Enum
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+
+from beam_style import PLOT_STYLE, STYLE_SHEET
 
 @dataclass
 class ArrayUnit:
@@ -32,107 +35,6 @@ class ScenarioType(Enum):
     ULTRASOUND = "Medical Ultrasound"
     ABLATION = "Tumor Ablation"
 
-# Add this constant after STYLE_SHEET
-PLOT_STYLE = {
-    'axes.labelcolor': 'white',
-    'axes.edgecolor': 'white',
-    'text.color': 'white',
-    'xtick.color': 'white',
-    'ytick.color': 'white',
-    'grid.color': '#404040',
-    'figure.facecolor': '#1e1e1e',
-    'axes.facecolor': '#2d2d2d',
-}
-
-
-STYLE_SHEET = """
-QMainWindow {
-    background-color: #1e1e1e;
-    color: #ffffff;
-}
-QWidget {
-    background-color: #1e1e1e;
-    color: #ffffff;
-}
-QGroupBox {
-    border: 2px solid #3a3a3a;
-    border-radius: 5px;
-    margin-top: 1em;
-    padding-top: 10px;
-    color: #ffffff;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 3px 0 3px;
-}
-QLabel {
-    color: #ffffff;
-}
-QSpinBox, QDoubleSpinBox, QComboBox {
-    background-color: #2d2d2d;
-    border: 1px solid #3a3a3a;
-    border-radius: 3px;
-    color: #ffffff;
-    padding: 5px;
-}
-QPushButton {
-    background-color: #0d47a1;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    text-align: center;
-}
-QPushButton:hover {
-    background-color: #1565c0;
-}
-QPushButton:pressed {
-    background-color: #0a3d91;
-}
-QDockWidget {
-    border: 1px solid #3a3a3a;
-    titlebar-close-icon: url(close.png);
-}
-QDockWidget::title {
-    text-align: left;
-    background: #2d2d2d;
-    padding-left: 5px;
-    height: 25px;
-}
-QMenuBar {
-    background-color: #2d2d2d;
-    color: white;
-}
-QMenuBar::item {
-    spacing: 3px;
-    padding: 5px 10px;
-    background: transparent;
-}
-QMenuBar::item:selected {
-    background: #3a3a3a;
-}
-"""
-
-STYLE_SHEET += """
-QDoubleSpinBox::up-button, QSpinBox::up-button {
-    border-radius: 3px;
-}
-QDoubleSpinBox::down-button, QSpinBox::down-button {
-    border-radius: 3px;
-}
-QToolTip {
-    background-color: #2d2d2d;
-    color: white;
-    border: 1px solid #3a3a3a;
-    padding: 5px;
-}
-QGroupBox {
-    background-color: #252525;
-    border-radius: 8px;
-    margin-top: 1.5em;
-}
-"""
 
 class ModernButton(QPushButton):
     def __init__(self, text, parent=None):
@@ -162,13 +64,15 @@ class BeamformingSimulator(QMainWindow):
         self.layout.setSpacing(10)
         
         # Create widgets
-        self.create_control_panel()
-        self.create_visualization_area()
-        self.create_menu_bar()
+        self.create_control_panel() #left panel for addign new array units
+        self.create_visualization_area() #right panel for visualizing the beamforming
+        self.create_menu_bar() #menu bar for loading and saving scenarios
 
         self.array_units: List[ArrayUnit] = []
         self.current_unit_id = 0
         self.setup_preset_scenarios()
+
+        self.create_array_units_panel() # right panel for managing array units (ediing and removing)
         
     def create_control_panel(self):
         control_dock = QDockWidget("Parameters", self)
@@ -230,10 +134,6 @@ class BeamformingSimulator(QMainWindow):
         freq_group.setLayout(freq_layout)
         control_layout.addWidget(freq_group)
         
-        # Add update button
-        update_button = ModernButton("Update Pattern")
-        update_button.clicked.connect(self.update_pattern)
-        control_layout.addWidget(update_button)
         
         control_layout.addStretch()
         control_widget.setLayout(control_layout)
@@ -261,25 +161,97 @@ class BeamformingSimulator(QMainWindow):
     def create_visualization_area(self):
         viz_widget = QWidget()
         viz_layout = QVBoxLayout()
-        viz_layout.setSpacing(10)
+        viz_layout.setSpacing(15)
         
-        # Set dark background for matplotlib
-        plt.style.use('dark_background')
+        # Title label with modern styling
+        title_label = QLabel("Beamforming Visualization")
+        title_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 5px;
+                background-color: #2d2d2d;
+                border-radius: 5px;
+            }
+        """)
+        viz_layout.addWidget(title_label)
         
-        # Create matplotlib figures
-        self.pattern_fig = Figure(figsize=(8, 5))
+        # Create horizontal layout for side-by-side plots
+        plot_layout = QHBoxLayout()
+        
+        # Left side - Pattern and Array plots
+        left_plots = QVBoxLayout()
+        
+        # Beam pattern plot with toolbar
+        pattern_container = QWidget()
+        pattern_layout = QVBoxLayout(pattern_container)
+        self.pattern_fig = Figure(figsize=(6, 4))
         self.pattern_fig.patch.set_facecolor('#1e1e1e')
         self.pattern_canvas = FigureCanvasQTAgg(self.pattern_fig)
-        viz_layout.addWidget(self.pattern_canvas)
+        pattern_layout.addWidget(self.pattern_canvas)
         
-        self.array_fig = Figure(figsize=(8, 3))
+        # Add navigation toolbar
+        pattern_toolbar = NavigationToolbar2QT(self.pattern_canvas, pattern_container)
+        pattern_toolbar.setStyleSheet("background-color: #2d2d2d; color: white;")
+        pattern_layout.addWidget(pattern_toolbar)
+        left_plots.addWidget(pattern_container)
+        
+        # Array geometry plot with toolbar
+        array_container = QWidget()
+        array_layout = QVBoxLayout(array_container)
+        self.array_fig = Figure(figsize=(6, 2))
         self.array_fig.patch.set_facecolor('#1e1e1e')
         self.array_canvas = FigureCanvasQTAgg(self.array_fig)
-        viz_layout.addWidget(self.array_canvas)
+        array_layout.addWidget(self.array_canvas)
         
+        array_toolbar = NavigationToolbar2QT(self.array_canvas, array_container)
+        array_toolbar.setStyleSheet("background-color: #2d2d2d; color: white;")
+        array_layout.addWidget(array_toolbar)
+        left_plots.addWidget(array_container)
+        
+        plot_layout.addLayout(left_plots)
+        
+        # Right side - Interference map
+        interference_container = QWidget()
+        interference_layout = QVBoxLayout(interference_container)
+        self.interference_fig = Figure(figsize=(6, 6))
+        self.interference_fig.patch.set_facecolor('#1e1e1e')
+        self.interference_canvas = FigureCanvasQTAgg(self.interference_fig)
+        interference_layout.addWidget(self.interference_canvas)
+        
+        interference_toolbar = NavigationToolbar2QT(self.interference_canvas, interference_container)
+        interference_toolbar.setStyleSheet("background-color: #2d2d2d; color: white;")
+        interference_layout.addWidget(interference_toolbar)
+        plot_layout.addWidget(interference_container)
+        
+        viz_layout.addLayout(plot_layout)
+        
+        # Add colormap selector
+        colormap_layout = QHBoxLayout()
+        colormap_label = QLabel("Colormap:")
+        colormap_label.setStyleSheet("color: white;")
+        self.colormap_selector = QComboBox()
+        self.colormap_selector.addItems(['RdBu_r', 'viridis', 'plasma', 'magma', 'inferno'])
+        self.colormap_selector.currentTextChanged.connect(self.update_colormap)
+        colormap_layout.addWidget(colormap_label)
+        colormap_layout.addWidget(self.colormap_selector)
+        colormap_layout.addStretch()
+        
+        viz_layout.addLayout(colormap_layout)
         viz_widget.setLayout(viz_layout)
         self.layout.addWidget(viz_widget)
-        
+    
+    def update_colormap(self):
+        # Re-draw interference plot with new colormap
+        if hasattr(self, 'last_interference_data'):
+            self.update_interference_plot(
+                self.x_field, 
+                self.y_field, 
+                self.last_interference_data,
+                self.colormap_selector.currentText()
+            )
+
     def create_menu_bar(self):
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
@@ -446,55 +418,185 @@ class BeamformingSimulator(QMainWindow):
         self.update_pattern_plot(theta, pattern)
         self.update_array_plot(np.array(all_x), np.array(all_y))
         self.update_interference_plot(self.x_field, self.y_field, interference)
-        
-    def update_interference_plot(self, x, y, interference):
+
+    def update_interference_plot(self, x, y, interference, cmap='RdBu_r'):
+        self.last_interference_data = interference
         self.interference_fig.clear()
         ax = self.interference_fig.add_subplot(111)
         im = ax.imshow(interference, 
                     extent=[x.min(), x.max(), y.min(), y.max()],
                     origin='lower',
-                    cmap='RdBu_r',
+                    cmap=cmap,
                     aspect='equal')
         ax.set_title('Interference Pattern', color='white', pad=10)
         ax.set_xlabel('X Position (λ)', color='white')
         ax.set_ylabel('Y Position (λ)', color='white')
         
-        # Enhance colorbar
         cbar = self.interference_fig.colorbar(im, label='Normalized Amplitude')
         cbar.ax.yaxis.label.set_color('white')
         cbar.ax.tick_params(colors='white')
         
-        self.interference_canvas.draw()
+        # Add grid
+        ax.grid(True, color='#404040', alpha=0.5, linestyle='--')
+        ax.tick_params(colors='white')
         
+        self.interference_canvas.draw()
+
     def update_pattern_plot(self, theta, pattern):
         self.pattern_fig.clear()
         ax = self.pattern_fig.add_subplot(111, projection='polar')
-        ax.plot(theta, pattern, color='#2196f3', linewidth=2)
+        ax.plot(theta, pattern, color='#2196f3', linewidth=2, label='Beam Pattern')
         ax.set_title('Beam Pattern', color='white', pad=10)
         ax.grid(True, color='#404040', alpha=0.5)
-        
-        # Enhance tick labels
         ax.tick_params(colors='white')
+        
+        # Add angular markers
+        angles = np.arange(0, 360, 30)
+        ax.set_xticks(np.radians(angles))
+        ax.set_xticklabels([f'{int(ang)}°' for ang in angles])
+        
+        # Add legend
+        ax.legend(loc='upper right', facecolor='#2d2d2d', edgecolor='#404040')
         
         self.pattern_canvas.draw()
         
     def update_array_plot(self, x, y):
         self.array_fig.clear()
         ax = self.array_fig.add_subplot(111)
-        ax.scatter(x, y, c='#2196f3', marker='o', s=100)
-        ax.set_title('Array Geometry', color='white', pad=10)
-        ax.set_xlabel('X Position (λ)', color='white')
-        ax.set_ylabel('Y Position (λ)', color='white')
-        ax.grid(True, color='#404040', alpha=0.5)
         
-        # Add element numbers
-        for i, (xi, yi) in enumerate(zip(x, y)):
-            ax.annotate(f'{i+1}', (xi, yi), 
-                       xytext=(0, 10), 
-                       textcoords='offset points',
-                       ha='center',
-                       color='white')
+        # Set background color
+        ax.set_facecolor('#1e1e1e')
         
+        # Add better grid
+        ax.grid(True, color='#404040', alpha=0.3, linestyle=':', zorder=1)
+        major_ticks = np.arange(np.floor(min(x)-1), np.ceil(max(x)+1), 1)
+        ax.set_xticks(major_ticks)
+        ax.set_yticks(major_ticks)
+        
+        # Plot elements with better visibility
+        scatter = ax.scatter(x, y, 
+                            c='#2196f3',
+                            marker='o', 
+                            s=150,  # Larger markers
+                            edgecolor='white',
+                            linewidth=1,
+                            alpha=0.8,
+                            zorder=3)
+        
+        # Set title and labels with better styling
+        ax.set_title('Array Geometry', color='white', pad=15, fontsize=14, fontweight='bold')
+        ax.set_xlabel('X Position (λ)', color='white', fontsize=12, labelpad=10)
+        ax.set_ylabel('Y Position (λ)', color='white', fontsize=12, labelpad=10)
+        
+        # Improve tick labels
+        ax.tick_params(colors='white', labelsize=10, length=6, width=1)
+        
+        # Auto-scale with better padding
+        x_min, x_max = np.min(x), np.max(x)
+        y_min, y_max = np.min(y), np.max(y)
+        x_range = max(x_max - x_min, 1)  # Ensure minimum range
+        y_range = max(y_max - y_min, 1)
+        padding = max(x_range, y_range) * 0.3  # More padding
+        
+        ax.set_xlim(x_min - padding, x_max + padding)
+        ax.set_ylim(y_min - padding, y_max + padding)
+        
+        # Enhanced unit colors with better contrast
+        unit_colors = ['#2196f3', '#4caf50', '#f44336', '#ff9800', '#9c27b0']
+        current_unit_start = 0
+        
+        if hasattr(self, 'array_units') and self.array_units:
+            for i, unit in enumerate(self.array_units):
+                if not unit.enabled:
+                    continue
+                    
+                x_unit, y_unit = self.calculate_array_geometry(unit)
+                unit_size = len(x_unit)
+                unit_end = current_unit_start + unit_size
+                
+                # Draw enhanced unit boundary
+                hull_x = np.concatenate([x_unit, [x_unit[0]]])
+                hull_y = np.concatenate([y_unit, [y_unit[0]]])
+                ax.plot(hull_x, hull_y, 
+                    color=unit_colors[i % len(unit_colors)], 
+                    alpha=0.7, 
+                    linewidth=2,
+                    linestyle='--',
+                    zorder=2)
+                
+                # Add improved unit label with more info
+                center_x = np.mean(x_unit)
+                center_y = np.mean(y_unit)
+                label_text = (f'Unit {unit.id}\n'
+                            f'θ = {unit.steering_angle}°\n'
+                            f'N = {unit.num_elements}')
+                ax.text(center_x, center_y + padding/3,
+                    label_text,
+                    color=unit_colors[i % len(unit_colors)],
+                    ha='center',
+                    va='bottom',
+                    fontsize=10,
+                    bbox=dict(facecolor='#2d2d2d',
+                            edgecolor=unit_colors[i % len(unit_colors)],
+                            alpha=0.8,
+                            boxstyle='round,pad=0.5'))
+                
+                # Add element numbers with better visibility
+                for j, (xi, yi) in enumerate(zip(x_unit, y_unit)):
+                    ax.annotate(f'{current_unit_start + j + 1}',
+                            (xi, yi),
+                            xytext=(0, -20),
+                            textcoords='offset points',
+                            ha='center',
+                            va='top',
+                            color='white',
+                            fontsize=9,
+                            bbox=dict(facecolor='#2d2d2d',
+                                    edgecolor='none',
+                                    alpha=0.6,
+                                    pad=1))
+                    
+                current_unit_start = unit_end
+                
+                # Add steering direction indicator
+                if unit.steering_angle != 0:
+                    angle = np.radians(unit.steering_angle)
+                    arrow_len = padding * 0.3
+                    dx = arrow_len * np.sin(angle)
+                    dy = arrow_len * np.cos(angle)
+                    ax.arrow(center_x, center_y,
+                            dx, dy,
+                            head_width=0.2,
+                            head_length=0.3,
+                            fc=unit_colors[i % len(unit_colors)],
+                            ec=unit_colors[i % len(unit_colors)],
+                            alpha=0.7,
+                            zorder=4)
+        else:
+            # Single unit case with improved visibility
+            for i, (xi, yi) in enumerate(zip(x, y)):
+                ax.annotate(f'{i + 1}',
+                        (xi, yi),
+                        xytext=(0, -20),
+                        textcoords='offset points',
+                        ha='center',
+                        va='top',
+                        color='white',
+                        fontsize=9,
+                        bbox=dict(facecolor='#2d2d2d',
+                                alpha=0.6,
+                                pad=1))
+        
+        # Set equal aspect ratio
+        ax.set_aspect('equal')
+        
+        # Add spines with better visibility
+        for spine in ax.spines.values():
+            spine.set_color('#404040')
+            spine.set_linewidth(1)
+        
+        # Update layout with more space
+        self.array_fig.tight_layout(pad=1.5)
         self.array_canvas.draw()
         
     def save_scenario(self):
@@ -551,7 +653,8 @@ class BeamformingSimulator(QMainWindow):
             )
             self.array_units.append(unit)
             self.current_unit_id += 1
-            
+        
+        self.update_units_list()  # Add this line
         self.update_pattern()
 
     def setup_preset_scenarios(self):
@@ -623,6 +726,150 @@ class BeamformingSimulator(QMainWindow):
             }
         }
 
+    def create_array_units_panel(self):
+        # Create dock widget for unit management
+        units_dock = QDockWidget("Array Units Manager", self)
+        units_widget = QWidget()
+        units_layout = QVBoxLayout()
+
+        # List of units with better styling
+        self.units_list = QListWidget()
+        self.units_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2d2d2d;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                min-width: 200px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #3a3a3a;
+            }
+            QListWidget::item:selected {
+                background-color: #0d47a1;
+            }
+        """)
+        self.units_list.currentItemChanged.connect(self.on_unit_selected)
+        units_layout.addWidget(self.units_list)
+
+        # Buttons for unit management
+        buttons_layout = QHBoxLayout()
+        add_button = ModernButton("Add Unit")
+        add_button.setToolTip("Create new unit with current parameters")
+        add_button.clicked.connect(self.add_array_unit)
+        
+        remove_button = ModernButton("Remove Unit")
+        remove_button.setToolTip("Remove selected unit")
+        remove_button.clicked.connect(self.remove_selected_unit)
+        
+        buttons_layout.addWidget(add_button)
+        buttons_layout.addWidget(remove_button)
+        units_layout.addLayout(buttons_layout)
+
+        # Unit specific controls
+        unit_controls = QGroupBox("Selected Unit Controls")
+        unit_layout = QFormLayout()
+
+        # Position controls
+        self.unit_x = QDoubleSpinBox()
+        self.unit_x.setRange(-20, 20)
+        self.unit_x.valueChanged.connect(self.update_unit_position)
+        unit_layout.addRow("X Position:", self.unit_x)
+
+        self.unit_y = QDoubleSpinBox()
+        self.unit_y.setRange(-20, 20)
+        self.unit_y.valueChanged.connect(self.update_unit_position)
+        unit_layout.addRow("Y Position:", self.unit_y)
+
+        # Unit parameters
+        self.unit_elements = QSpinBox()
+        self.unit_elements.setRange(1, 128)
+        self.unit_elements.valueChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Elements:", self.unit_elements)
+
+        self.unit_spacing = QDoubleSpinBox()
+        self.unit_spacing.setRange(0.1, 10.0)
+        self.unit_spacing.valueChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Spacing:", self.unit_spacing)
+
+        self.unit_steering = QDoubleSpinBox()
+        self.unit_steering.setRange(-90, 90)
+        self.unit_steering.valueChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Steering:", self.unit_steering)
+
+        self.unit_phase = QDoubleSpinBox()
+        self.unit_phase.setRange(-180, 180)
+        self.unit_phase.valueChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Phase:", self.unit_phase)
+
+        unit_controls.setLayout(unit_layout)
+        units_layout.addWidget(unit_controls)
+
+        units_widget.setLayout(units_layout)
+        units_dock.setWidget(units_widget)
+        self.addDockWidget(Qt.RightDockWidgetArea, units_dock)
+
+    def on_unit_selected(self, current, previous):
+        """Update control values when unit selection changes"""
+        if current:
+            unit_id = current.data(Qt.UserRole)
+            unit = next((u for u in self.array_units if u.id == unit_id), None)
+            if unit:
+                # Update controls with unit values
+                self.unit_x.setValue(unit.x_pos)
+                self.unit_y.setValue(unit.y_pos)
+                self.unit_elements.setValue(unit.num_elements)
+                self.unit_spacing.setValue(unit.element_spacing)
+                self.unit_steering.setValue(unit.steering_angle)
+                self.unit_phase.setValue(unit.phase_shift)
+
+    def update_unit_parameters(self):
+        """Update selected unit parameters"""
+        current_item = self.units_list.currentItem()
+        if current_item and self.array_units:
+            unit_id = current_item.data(Qt.UserRole)
+            unit = next((u for u in self.array_units if u.id == unit_id), None)
+            if unit:
+                # Update unit parameters
+                unit.num_elements = self.unit_elements.value()
+                unit.element_spacing = self.unit_spacing.value()
+                unit.steering_angle = self.unit_steering.value()
+                unit.phase_shift = self.unit_phase.value()
+                self.update_pattern()
+
+    def update_unit_position(self):
+        current_item = self.units_list.currentItem()
+        if current_item and self.array_units:
+            unit_id = current_item.data(Qt.UserRole)
+            unit = next((u for u in self.array_units if u.id == unit_id), None)
+            if unit:
+                unit.x_pos = self.unit_x.value()
+                unit.y_pos = self.unit_y.value()
+                self.update_pattern()
+
+    def update_unit_phase(self):
+        current_item = self.units_list.currentItem()
+        if current_item and self.array_units:
+            unit_id = current_item.data(Qt.UserRole)
+            unit = next((u for u in self.array_units if u.id == unit_id), None)
+            if unit:
+                unit.phase_shift = self.unit_phase.value()
+                self.update_pattern()
+
+    def remove_selected_unit(self):
+        current_item = self.units_list.currentItem()
+        if current_item:
+            unit_id = current_item.data(Qt.UserRole)
+            self.remove_array_unit(unit_id)
+            self.units_list.takeItem(self.units_list.row(current_item))
+
+    def update_units_list(self):
+        self.units_list.clear()
+        for unit in self.array_units:
+            item = QListWidgetItem(f"Unit {unit.id}")
+            item.setData(Qt.UserRole, unit.id)
+            self.units_list.addItem(item)
+
     def add_array_unit(self):
         unit = ArrayUnit(
             id=self.current_unit_id,
@@ -638,6 +885,7 @@ class BeamformingSimulator(QMainWindow):
         )
         self.array_units.append(unit)
         self.current_unit_id += 1
+        self.update_units_list()
         self.update_pattern()
 
     def remove_array_unit(self, unit_id: int):
