@@ -911,8 +911,8 @@ class BeamformingSimulator(QMainWindow):
             if unit:
                 # Block signals temporarily
                 for control in [self.unit_x, self.unit_y, self.unit_elements, 
-                            self.unit_spacing, self.unit_steering, 
-                            self.unit_curvature, self.geometry_type]:
+                                self.unit_spacing, self.unit_steering, 
+                                self.unit_curvature, self.geometry_type]:
                     control.blockSignals(True)
                 
                 # Update control values
@@ -926,8 +926,8 @@ class BeamformingSimulator(QMainWindow):
                 
                 # Re-enable signals
                 for control in [self.unit_x, self.unit_y, self.unit_elements,
-                            self.unit_spacing, self.unit_steering, 
-                            self.unit_curvature, self.geometry_type]:
+                                self.unit_spacing, self.unit_steering, 
+                                self.unit_curvature, self.geometry_type]:
                     control.blockSignals(False)
                     
                 # Update frequency list
@@ -953,7 +953,7 @@ class BeamformingSimulator(QMainWindow):
                 unit.curvature_factor = self.unit_curvature.value()
                 # Update frequencies
                 unit.operating_freqs = [float(self.freq_list.item(i).text().replace(" MHz", "")) 
-                                    for i in range(self.freq_list.count())]
+                                        for i in range(self.freq_list.count())]
                 # Always update pattern
                 self.update_pattern()
 
