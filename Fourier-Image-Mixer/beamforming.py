@@ -13,21 +13,19 @@ from typing import List, Dict
 from dataclasses import dataclass
 from enum import Enum
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-
 from beam_style import PLOT_STYLE, STYLE_SHEET
 
 @dataclass
 class ArrayUnit:
     id: int
-    x_pos: float  # Center position
+    x_pos: float
     y_pos: float
     num_elements: int
     element_spacing: float
     steering_angle: float
     geometry_type: str
-    curvature: float
-    operating_freq: float
-    phase_shift: float
+    curvature_factor: float  # Changed from curvature
+    operating_freqs: List[float]  # Changed from single freq to list
     enabled: bool = True
 
 class ScenarioType(Enum):
@@ -50,6 +48,7 @@ class BeamformingSimulator(QMainWindow):
         self.setWindowTitle("2D Beamforming Simulator")
         self.setGeometry(100, 100, 1400, 900)
         self.setStyleSheet(STYLE_SHEET)
+        self.editing_mode = False
         
         # Initialize field variables
         self.x_field = np.linspace(-10, 10, 200)
@@ -63,16 +62,13 @@ class BeamformingSimulator(QMainWindow):
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(10)
         
-        # Create widgets
-        self.create_control_panel() #left panel for addign new array units
-        self.create_visualization_area() #right panel for visualizing the beamforming
-        self.create_menu_bar() #menu bar for loading and saving scenarios
-
+        # Create widgets (removed create_control_panel)
+        self.create_visualization_area()
+        self.create_menu_bar()
         self.array_units: List[ArrayUnit] = []
         self.current_unit_id = 0
         self.setup_preset_scenarios()
-
-        self.create_array_units_panel() # right panel for managing array units (ediing and removing)
+        self.create_array_units_panel()
         
     def create_control_panel(self):
         control_dock = QDockWidget("Parameters", self)
@@ -312,55 +308,52 @@ class BeamformingSimulator(QMainWindow):
 
     def update_pattern(self):
         if not self.array_units:
-            # If no array units, use current parameters
-            unit = ArrayUnit(
-                id=-1,
-                x_pos=0,
-                y_pos=0,
-                num_elements=self.num_elements.value(),
-                element_spacing=self.element_spacing.value(),
-                steering_angle=self.steering_angle.value(),
-                geometry_type=self.geometry_type.currentText(),
-                curvature=self.curvature.value(),
-                operating_freq=self.freq.value(),
-                phase_shift=0
-            )
-            self.calculate_single_pattern(unit)
+            # Clear the pattern plot
+            self.pattern_fig.clear()
+            self.pattern_canvas.draw()
+
+            # Clear the array plot
+            self.array_fig.clear()
+            self.array_canvas.draw()
+
+            # Clear the interference plot
+            self.interference_fig.clear()
+            self.interference_canvas.draw()
         else:
             # Calculate combined pattern for all units
             self.calculate_combined_pattern()
 
     def calculate_single_pattern(self, unit):
-        k = 2 * np.pi  # wavenumber (normalized wavelength)
-        
-        # Create array geometry
+        k = 2 * np.pi
         x, y = self.calculate_array_geometry(unit)
-        
-        # Calculate beam pattern (polar)
         theta = np.linspace(-np.pi/2, np.pi/2, 1000)
-        pattern = np.zeros_like(theta)
-        theta_steer = np.radians(unit.steering_angle)
-        
-        for i in range(len(theta)):
-            phase = k * (x * np.sin(theta[i]) + y * np.cos(theta[i]))
-            steer_phase = k * x * np.sin(theta_steer)
-            pattern[i] = np.abs(np.sum(np.exp(1j * (phase - steer_phase))))
-        
-        pattern = pattern / np.max(pattern)
-        
-        # Calculate interference map
+        pattern = np.zeros_like(theta, dtype=np.complex128)
         interference = np.zeros_like(self.X, dtype=np.complex128)
         
-        for i in range(len(x)):
-            r = np.sqrt((self.X - x[i])**2 + (self.Y - y[i])**2)
-            phase = k * r
-            steer_phase = k * x[i] * np.sin(theta_steer)
-            interference += np.exp(1j * (phase - steer_phase))
+        # Calculate for each frequency
+        for freq in unit.operating_freqs:
+            k_freq = k * freq  # Scale wavenumber by frequency
+            theta_steer = np.radians(unit.steering_angle)
+            
+            # Add beam pattern contribution
+            for i in range(len(theta)):
+                phase = k_freq * (x * np.sin(theta[i]) + y * np.cos(theta[i]))
+                steer_phase = k_freq * x * np.sin(theta_steer)
+                pattern[i] += np.sum(np.exp(1j * (phase - steer_phase)))
+                
+            # Add interference contribution
+            for i in range(len(x)):
+                r = np.sqrt((self.X - x[i])**2 + (self.Y - y[i])**2)
+                phase = k_freq * r
+                steer_phase = k_freq * x[i] * np.sin(theta_steer)
+                interference += np.exp(1j * (phase - steer_phase))
         
-        interference = np.abs(interference)
+        pattern = np.abs(pattern) / len(unit.operating_freqs)
+        pattern = pattern / np.max(pattern)
+        
+        interference = np.abs(interference) / len(unit.operating_freqs)
         interference = interference / np.max(interference)
         
-        # Update visualizations
         self.update_pattern_plot(theta, pattern)
         self.update_array_plot(x, y)
         self.update_interference_plot(self.x_field, self.y_field, interference)
@@ -370,9 +363,10 @@ class BeamformingSimulator(QMainWindow):
             x = (np.arange(unit.num_elements) - unit.num_elements/2) * unit.element_spacing + unit.x_pos
             y = np.zeros_like(x) + unit.y_pos
         else:
-            radius = 10
-            arc_angle = np.radians(unit.curvature)
-            angles = np.linspace(-arc_angle/2, arc_angle/2, unit.num_elements)
+            # Curved array with angle span
+            radius = unit.curvature_factor * unit.element_spacing * unit.num_elements / 2
+            angle_span = np.radians(unit.steering_angle)  # Use steering angle as angle span for curved
+            angles = np.linspace(-angle_span/2, angle_span/2, unit.num_elements)
             x = radius * np.sin(angles) + unit.x_pos
             y = radius * (1 - np.cos(angles)) + unit.y_pos
         return x, y
@@ -668,11 +662,11 @@ class BeamformingSimulator(QMainWindow):
                             "element_spacing": 0.5,
                             "steering_angle": 0,
                             "geometry_type": "Linear",
-                            "curvature": 0,
-                            "operating_freq": 28000,
+                            "curvature_factor": 1.0,
+                            "operating_freqs": [28000],
                             "x_pos": 0,
                             "y_pos": 0,
-                            "phase_shift": 0
+                            
                         }
                     ]
                 }
@@ -686,11 +680,11 @@ class BeamformingSimulator(QMainWindow):
                             "element_spacing": 0.25,
                             "steering_angle": 0,
                             "geometry_type": "Curved",
-                            "curvature": 60,
-                            "operating_freq": 5,
+                            "curvature_factor": 1.5,
+                            "operating_freqs": [5],
                             "x_pos": 0,
                             "y_pos": 0,
-                            "phase_shift": 0
+                            
                         }
                     ]
                 }
@@ -704,22 +698,22 @@ class BeamformingSimulator(QMainWindow):
                             "element_spacing": 1.0,
                             "steering_angle": -30,
                             "geometry_type": "Linear",
-                            "curvature": 0,
-                            "operating_freq": 1,
+                            "curvature_factor": 1.0,
+                            "operating_freqs": [1],
                             "x_pos": -5,
                             "y_pos": 0,
-                            "phase_shift": 0
+                            
                         },
                         {
                             "num_elements": 32,
                             "element_spacing": 1.0,
                             "steering_angle": 30,
                             "geometry_type": "Linear",
-                            "curvature": 0,
-                            "operating_freq": 1,
+                            "curvature_factor": 1.0,
+                            "operating_freqs": [1],
                             "x_pos": 5,
                             "y_pos": 0,
-                            "phase_shift": 0
+                            
                         }
                     ]
                 }
@@ -754,21 +748,27 @@ class BeamformingSimulator(QMainWindow):
 
         # Buttons for unit management
         buttons_layout = QHBoxLayout()
-        add_button = ModernButton("Add Unit")
-        add_button.setToolTip("Create new unit with current parameters")
-        add_button.clicked.connect(self.add_array_unit)
+        self.add_edit_button = ModernButton("Add Unit")
+        self.add_edit_button.setToolTip("Create new unit with current parameters")
+        self.add_edit_button.clicked.connect(self.toggle_edit_mode)
         
         remove_button = ModernButton("Remove Unit")
         remove_button.setToolTip("Remove selected unit")
         remove_button.clicked.connect(self.remove_selected_unit)
         
-        buttons_layout.addWidget(add_button)
+        buttons_layout.addWidget(self.add_edit_button)
         buttons_layout.addWidget(remove_button)
         units_layout.addLayout(buttons_layout)
 
         # Unit specific controls
         unit_controls = QGroupBox("Selected Unit Controls")
         unit_layout = QFormLayout()
+
+        # Add geometry type control
+        self.geometry_type = QComboBox()
+        self.geometry_type.addItems(["Linear", "Curved"])
+        self.geometry_type.currentTextChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Array Type:", self.geometry_type)
 
         # Position controls
         self.unit_x = QDoubleSpinBox()
@@ -784,11 +784,13 @@ class BeamformingSimulator(QMainWindow):
         # Unit parameters
         self.unit_elements = QSpinBox()
         self.unit_elements.setRange(1, 128)
+        self.unit_elements.setValue(16)  # Set default value
         self.unit_elements.valueChanged.connect(self.update_unit_parameters)
         unit_layout.addRow("Elements:", self.unit_elements)
 
         self.unit_spacing = QDoubleSpinBox()
         self.unit_spacing.setRange(0.1, 10.0)
+        self.unit_spacing.setValue(0.5)  # Set default value
         self.unit_spacing.valueChanged.connect(self.update_unit_parameters)
         unit_layout.addRow("Spacing:", self.unit_spacing)
 
@@ -797,10 +799,51 @@ class BeamformingSimulator(QMainWindow):
         self.unit_steering.valueChanged.connect(self.update_unit_parameters)
         unit_layout.addRow("Steering:", self.unit_steering)
 
-        self.unit_phase = QDoubleSpinBox()
-        self.unit_phase.setRange(-180, 180)
-        self.unit_phase.valueChanged.connect(self.update_unit_parameters)
-        unit_layout.addRow("Phase:", self.unit_phase)
+
+        # Replace curvature with curvature factor
+        self.unit_curvature = QDoubleSpinBox()
+        self.unit_curvature.setRange(0, 2)
+        self.unit_curvature.setValue(1)
+        self.unit_curvature.setSingleStep(0.1)
+        self.unit_curvature.valueChanged.connect(self.update_unit_parameters)
+        unit_layout.addRow("Curvature Factor:", self.unit_curvature)
+
+        # Add frequency controls
+        freq_group = QGroupBox("Frequencies")
+        freq_layout = QVBoxLayout()
+        
+        self.freq_list = QListWidget()
+        self.freq_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2d2d2d;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                min-height: 100px;
+            }
+        """)
+        freq_layout.addWidget(self.freq_list)
+        
+        freq_controls = QHBoxLayout()
+        
+        self.freq_input = QDoubleSpinBox()
+        self.freq_input.setRange(1, 1000)
+        self.freq_input.setValue(100)
+        self.freq_input.setSuffix(" MHz")
+        freq_controls.addWidget(self.freq_input)
+        
+        add_freq_btn = ModernButton("+")
+        add_freq_btn.setFixedWidth(40)
+        add_freq_btn.clicked.connect(self.add_frequency)
+        freq_controls.addWidget(add_freq_btn)
+        
+        remove_freq_btn = ModernButton("-")
+        remove_freq_btn.setFixedWidth(40)
+        remove_freq_btn.clicked.connect(self.remove_frequency)
+        freq_controls.addWidget(remove_freq_btn)
+        
+        freq_layout.addLayout(freq_controls)
+        freq_group.setLayout(freq_layout)
+        unit_layout.addRow("Operating Frequencies:", freq_group)
 
         unit_controls.setLayout(unit_layout)
         units_layout.addWidget(unit_controls)
@@ -809,32 +852,109 @@ class BeamformingSimulator(QMainWindow):
         units_dock.setWidget(units_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, units_dock)
 
+
+    def add_frequency(self):
+        freq = self.freq_input.value()
+        self.freq_list.addItem(f"{freq} MHz")
+        
+        # Update unit if one is selected
+        current_item = self.units_list.currentItem()
+        if current_item:
+            unit_id = current_item.data(Qt.UserRole)
+            unit = next((u for u in self.array_units if u.id == unit_id), None)
+            if unit:
+                unit.operating_freqs.append(freq)
+                self.update_pattern()
+
+    def remove_frequency(self):
+        current_row = self.freq_list.currentRow()
+        if current_row >= 0:
+            self.freq_list.takeItem(current_row)
+            
+            # Update unit if one is selected
+            current_item = self.units_list.currentItem()
+            if current_item:
+                unit_id = current_item.data(Qt.UserRole)
+                unit = next((u for u in self.array_units if u.id == unit_id), None)
+                if unit:
+                    unit.operating_freqs.pop(current_row)
+                    self.update_pattern()
+
+    def toggle_edit_mode(self):
+        if self.editing_mode:
+            # Exit edit mode
+            self.editing_mode = False
+            self.add_edit_button.setText("Add Unit")
+            self.units_list.clearSelection()
+            self.clear_unit_controls()
+        else:
+            # Enter add mode
+            self.editing_mode = True
+            self.add_edit_button.setText("Exit Edit Mode")
+            self.add_array_unit()
+
+    def clear_unit_controls(self):
+        """Reset all unit control values to defaults"""
+        self.unit_x.setValue(0)
+        self.unit_y.setValue(0)
+        self.unit_elements.setValue(16)
+        self.unit_spacing.setValue(0.5)
+        self.unit_steering.setValue(0)
+        self.unit_curvature.setValue(1)
+        self.freq_list.clear()
+        self.geometry_type.setCurrentText("Linear")
+
     def on_unit_selected(self, current, previous):
-        """Update control values when unit selection changes"""
         if current:
             unit_id = current.data(Qt.UserRole)
             unit = next((u for u in self.array_units if u.id == unit_id), None)
             if unit:
-                # Update controls with unit values
-                self.unit_x.setValue(unit.x_pos)
+                # Block signals temporarily
+                for control in [self.unit_x, self.unit_y, self.unit_elements, 
+                            self.unit_spacing, self.unit_steering, 
+                            self.unit_curvature, self.geometry_type]:
+                    control.blockSignals(True)
+                
+                # Update control values
+                self.unit_x.setValue(unit.x_pos)  
                 self.unit_y.setValue(unit.y_pos)
                 self.unit_elements.setValue(unit.num_elements)
                 self.unit_spacing.setValue(unit.element_spacing)
                 self.unit_steering.setValue(unit.steering_angle)
-                self.unit_phase.setValue(unit.phase_shift)
+                self.unit_curvature.setValue(unit.curvature_factor)
+                self.geometry_type.setCurrentText(unit.geometry_type)
+                
+                # Re-enable signals
+                for control in [self.unit_x, self.unit_y, self.unit_elements,
+                            self.unit_spacing, self.unit_steering, 
+                            self.unit_curvature, self.geometry_type]:
+                    control.blockSignals(False)
+                    
+                # Update frequency list
+                self.freq_list.clear()
+                for freq in unit.operating_freqs:
+                    self.freq_list.addItem(f"{freq} MHz")
+                
+                self.add_edit_button.setText("Exit Edit Mode")
+                self.editing_mode = True
 
     def update_unit_parameters(self):
-        """Update selected unit parameters"""
+        """Update selected unit parameters in real-time"""
         current_item = self.units_list.currentItem()
-        if current_item and self.array_units:
+        if current_item and self.array_units and self.editing_mode:
             unit_id = current_item.data(Qt.UserRole)
             unit = next((u for u in self.array_units if u.id == unit_id), None)
             if unit:
-                # Update unit parameters
+                # Update all unit parameters
                 unit.num_elements = self.unit_elements.value()
                 unit.element_spacing = self.unit_spacing.value()
                 unit.steering_angle = self.unit_steering.value()
-                unit.phase_shift = self.unit_phase.value()
+                unit.geometry_type = self.geometry_type.currentText()
+                unit.curvature_factor = self.unit_curvature.value()
+                # Update frequencies
+                unit.operating_freqs = [float(self.freq_list.item(i).text().replace(" MHz", "")) 
+                                    for i in range(self.freq_list.count())]
+                # Always update pattern
                 self.update_pattern()
 
     def update_unit_position(self):
@@ -853,7 +973,6 @@ class BeamformingSimulator(QMainWindow):
             unit_id = current_item.data(Qt.UserRole)
             unit = next((u for u in self.array_units if u.id == unit_id), None)
             if unit:
-                unit.phase_shift = self.unit_phase.value()
                 self.update_pattern()
 
     def remove_selected_unit(self):
@@ -871,20 +990,32 @@ class BeamformingSimulator(QMainWindow):
             self.units_list.addItem(item)
 
     def add_array_unit(self):
+        # Get current frequencies from list
+        frequencies = [float(self.freq_list.item(i).text().replace(" MHz", "")) 
+                    for i in range(self.freq_list.count())]
+        if not frequencies:  # If no frequencies, use default
+            frequencies = [self.freq_input.value()]
+            
         unit = ArrayUnit(
             id=self.current_unit_id,
-            x_pos=0,
-            y_pos=0,
-            num_elements=self.num_elements.value(),
-            element_spacing=self.element_spacing.value(),
-            steering_angle=self.steering_angle.value(),
+            x_pos=self.unit_x.value(),
+            y_pos=self.unit_y.value(),
+            num_elements=self.unit_elements.value(),
+            element_spacing=self.unit_spacing.value(),
+            steering_angle=self.unit_steering.value(),
             geometry_type=self.geometry_type.currentText(),
-            curvature=self.curvature.value(),
-            operating_freq=self.freq.value(),
-            phase_shift=0
+            curvature_factor=self.unit_curvature.value(),
+            operating_freqs=frequencies.copy(),  # Make a copy of frequencies
+            enabled=True
         )
         self.array_units.append(unit)
         self.current_unit_id += 1
+        #exit edit mode
+        self.editing_mode = False
+        self.add_edit_button.setText("Add Unit")
+        self.clear_unit_controls()
+
+
         self.update_units_list()
         self.update_pattern()
 
