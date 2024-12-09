@@ -71,6 +71,85 @@ class ModernWindow(QMainWindow):
         self.undo_stack = []
         self.redo_stack = []
 
+        self.is_mixing = False
+        self.mix_timer = QTimer()
+        self.mix_timer.setSingleShot(True)
+        self.mix_timer.timeout.connect(self._perform_real_time_mix)
+
+    def _perform_real_time_mix(self):
+        if self.is_mixing:
+            return
+            
+        try:
+            self.is_mixing = True
+            self.mix_button.setEnabled(False)
+            self.mix_progress.setValue(0)
+            self.mix_progress.show()
+            
+            # Perform mixing
+            self.real_time_mix()
+            
+        finally:
+            self.is_mixing = False
+            self.mix_button.setEnabled(True)
+            self.mix_progress.hide()
+
+    def schedule_real_time_mix(self):
+        if not self.is_mixing:
+            self.mix_timer.stop()
+            self.mix_timer.start(200)
+
+    def real_time_mix(self):
+        try:
+            output_index = self.output_selector.currentIndex()
+            output_viewer = self.outputViewers[output_index]
+            if not output_viewer or not output_viewer.originalImageLabel:
+                return
+
+            self.mix_progress.setValue(10)
+
+            # Collect components
+            components = []
+            for i, viewer in enumerate(self.viewers):
+                if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
+                    # ... existing component collection code ...
+                    self.mix_progress.setValue(20 + (i * 15))
+
+            if not components:
+                return
+
+            self.mix_progress.setValue(60)
+
+            # Perform mixing
+            mix_type = self.mix_type.currentText()
+            if mix_type == "Magnitude/Phase":
+                result = mix_magnitude_phase(self, components)
+            else:
+                result = mix_real_imaginary(self, components)
+
+            self.mix_progress.setValue(80)
+
+            # Process result
+            mixed_image = np.fft.ifft2(result)
+            mixed_image = np.abs(mixed_image)
+            mixed_image = ((mixed_image - mixed_image.min()) * 255 / (mixed_image.max() - mixed_image.min()))
+            mixed_image = mixed_image.astype(np.uint8)
+
+            self.mix_progress.setValue(90)
+
+            # Update display
+            qImage = convet_mixed_to_qImage(mixed_image)
+            if qImage and output_viewer and output_viewer.originalImageLabel:
+                pixmap = QPixmap.fromImage(qImage)
+                output_viewer.originalImageLabel.setPixmap(pixmap.scaled(300, 300, Qt.KeepAspectRatio))
+
+            self.mix_progress.setValue(100)
+
+        except Exception as e:
+            print(f"Error during real-time mixing: {str(e)}")
+            if hasattr(self, 'show_error'):
+                self.show_error(f"Mixing failed: {str(e)}")
+                
     def _setup_theme(self):
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -328,6 +407,81 @@ class ModernWindow(QMainWindow):
             self.mix_button.setEnabled(True)
             self.mix_progress.hide()
 
+
+    def real_time_mix(self):
+        try:
+            output_index = self.output_selector.currentIndex()
+            output_viewer = self.outputViewers[output_index]
+            if not output_viewer or not output_viewer.originalImageLabel:
+                return
+
+            # Collect and validate components
+            components = []
+            for viewer in self.viewers:
+                if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
+                    ftComponents = []
+                    if self.rectSize <= 5:
+                        ftComponents = viewer.fftComponents
+                    else:
+                        if self.inner_region.isChecked():
+                            data_percentage = self.rectSize / 300
+                            ftComponents = np.zeros_like(viewer.fftComponents)
+                            center_x = viewer.fftComponents.shape[0] // 2
+                            center_y = viewer.fftComponents.shape[1] // 2    
+                            region_size = int(300 * data_percentage)
+                            ftComponents[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ] = viewer.fftComponents[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ]
+                        else:
+                            data_percentage = self.rectSize / 300
+                            ftComponents = np.copy(viewer.fftComponents)
+                            center_x = viewer.fftComponents.shape[0] // 2
+                            center_y = viewer.fftComponents.shape[1] // 2
+                            region_size = int(300 * data_percentage)
+                            mask = np.ones_like(ftComponents)
+                            mask[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ] = 0
+                            ftComponents = ftComponents * mask
+
+                    weight1 = viewer.weight1_slider.value() / 100.0
+                    weight2 = viewer.weight2_slider.value() / 100.0
+
+                    components.append({
+                        'ft': ftComponents.copy(),
+                        'weight1': weight1,
+                        'weight2': weight2
+                    })
+
+            if not components:
+                return
+
+            # Get mixing type and perform mix
+            mix_type = self.mix_type.currentText()
+            if mix_type == "Magnitude/Phase":
+                result = mix_magnitude_phase(self, components)
+            else:
+                result = mix_real_imaginary(self, components)
+
+            # Process result
+            mixed_image = np.fft.ifft2(result)
+            mixed_image = np.abs(mixed_image)
+            mixed_image = ((mixed_image - mixed_image.min()) * 255 / (mixed_image.max() - mixed_image.min()))
+            mixed_image = mixed_image.astype(np.uint8)
+
+            qImage = convet_mixed_to_qImage(mixed_image)
+            if qImage and output_viewer and output_viewer.originalImageLabel:
+                pixmap = QPixmap.fromImage(qImage)
+                output_viewer.originalImageLabel.setPixmap(pixmap.scaled(300, 300, Qt.KeepAspectRatio))
+
+        except Exception as e:
+            print(f"Error during real-time mixing: {str(e)}")
+            
     def buildUI(self):
         # Main container
         self._ui_initialized = True
@@ -480,32 +634,7 @@ class ModernWindow(QMainWindow):
         layout.addWidget(title_bar)
         layout.addWidget(content)
 
-        # Mixing controls
-        mixing_group = QGroupBox("Mixing Controls")
-        mixing_layout = QHBoxLayout(mixing_group)
-
-        self.mix_button = QPushButton("Start Mix")
-        self.mix_button.setMinimumWidth(100)
-        self.mix_button.setStyleSheet("""
-            QPushButton[loading="true"] {
-                background: #2d2d2d;
-                color: #666666;
-            }
-        """)
-        self.mix_button.setToolTip("Mix selected components from input images")
-
-        self.mix_progress = QProgressBar()
-        self.mix_progress.setMinimum(0)
-        self.mix_progress.setMaximum(100)
-        self.mix_progress.setValue(0)
-        self.mix_progress.setTextVisible(True)
-        self.mix_progress.hide()
-
-        mixing_layout.addWidget(self.mix_button)
-        mixing_layout.addWidget(self.mix_progress, stretch=1)
-
-        # Add to right panel layout (before addStretch)
-        right_layout.addWidget(mixing_group)
+        
 
         # Component mixing controls
         mixing_type_group = QGroupBox("Mixing Type")
@@ -527,10 +656,43 @@ class ModernWindow(QMainWindow):
         mixing_type_layout.addWidget(self.mix_type)
         mixing_type_layout.addLayout(output_selector_layout)
         right_layout.addWidget(mixing_type_group)
+        self.region_size.valueChanged.connect(self._on_region_size_changed)
+
+        # Mixing controls
+        mixing_group = QGroupBox("Mixing Controls")
+        mixing_layout = QHBoxLayout(mixing_group)
+
+        # Create mix controls container
+        mix_controls = QWidget()
+        mix_controls_layout = QVBoxLayout(mix_controls)
+        mix_controls_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add mix button and progress bar
+        self.mix_button = QPushButton("Start Mix")
+        self.mix_button.setMinimumWidth(100)
+        
+        self.mix_progress = QProgressBar()
+        self.mix_progress.setMinimum(0)
+        self.mix_progress.setMaximum(100)
+        self.mix_progress.setValue(0)
+        self.mix_progress.setTextVisible(True)
+        self.mix_progress.hide()
+
+        mix_controls_layout.addWidget(self.mix_button)
+        mix_controls_layout.addWidget(self.mix_progress)
+
+        mixing_layout.addWidget(mix_controls)
+        
+        # Add to right panel layout
+        right_layout.addWidget(mixing_group)
         
         self.setCentralWidget(self.container)
 
         self._setup_connection()
+
+    def _on_region_size_changed(self):
+        draw_rectangle(self, self.viewers, self.region_size.value(), self.region)
+        self.real_time_mix()
 
     def changeRegion(self, region):
         self.region = region
@@ -540,6 +702,7 @@ class ModernWindow(QMainWindow):
         mode = self.mix_type.currentText()
         for viewer in self.viewers:
             viewer.update_weight_labels(mode)
+        self.real_time_mix()
 
     def toggleMaximized(self):
         if self.isMaximized():
@@ -785,10 +948,15 @@ class ImageViewerWidget(ModernWindow):
             self.weight2_slider.setRange(-100, 100)
             self.weight2_slider.setValue(100)
 
+            self.weight1_slider.valueChanged.connect(self._on_slider_changed)
+            self.weight2_slider.valueChanged.connect(self._on_slider_changed)
+
             weight_layout.addWidget(self.weight1_label)
             weight_layout.addWidget(self.weight1_slider)
             weight_layout.addWidget(self.weight2_label)
             weight_layout.addWidget(self.weight2_slider)
+
+            
             
             weights_layout.addWidget(weight_widget)
             layout.addWidget(self.weights_group)
@@ -802,6 +970,14 @@ class ImageViewerWidget(ModernWindow):
         self.progress.hide()
         layout.addWidget(self.progress)
 
+    def _on_slider_changed(self):
+        # Find the parent ModernWindow instance
+        parent = self
+        while parent and not isinstance(parent, ModernWindow):
+            parent = parent.parent()
+        
+        if parent and hasattr(parent, 'real_time_mix'):
+            parent.real_time_mix()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and self.originalImageLabel.underMouse():
