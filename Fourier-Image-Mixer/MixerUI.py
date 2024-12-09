@@ -105,7 +105,7 @@ class ModernWindow(QMainWindow):
     def schedule_real_time_mix(self):
         if not self.is_mixing:
             self.mix_timer.stop()
-            self.mix_timer.start(200)
+            self.mix_timer.start(200)  # 200ms debounce
 
     def real_time_mix(self):
         try:
@@ -963,8 +963,8 @@ class ImageViewerWidget(ModernWindow):
             self.weight2_slider.setRange(-100, 100)
             self.weight2_slider.setValue(100)
 
-            self.weight1_slider.valueChanged.connect(self._on_slider_changed)
-            self.weight2_slider.valueChanged.connect(self._on_slider_changed)
+            self.weight1_slider.valueChanged.connect(lambda: self.find_parent_window().schedule_real_time_mix())
+            self.weight2_slider.valueChanged.connect(lambda: self.find_parent_window().schedule_real_time_mix())
 
             weight_layout.addWidget(self.weight1_label)
             weight_layout.addWidget(self.weight1_slider)
@@ -985,6 +985,15 @@ class ImageViewerWidget(ModernWindow):
         self.progress.hide()
         layout.addWidget(self.progress)
 
+    def find_parent_window(self):
+        # Get the top-level window
+        parent = self.parentWidget()
+        while parent:
+            if isinstance(parent, ModernWindow) and not isinstance(parent, ImageViewerWidget):
+                return parent
+            parent = parent.parentWidget()
+        return None
+    
     def _on_slider_changed(self):
         # Find the parent ModernWindow instance
         parent = self
