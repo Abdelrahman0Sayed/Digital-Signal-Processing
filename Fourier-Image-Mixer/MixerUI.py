@@ -93,14 +93,14 @@ class ModernWindow(QMainWindow):
             self.mix_button.setEnabled(False)
             self.mix_progress.setValue(0)
             self.mix_progress.show()
+            QApplication.processEvents()  # Force UI update
             
             # Perform mixing
             self.real_time_mix()
             
         finally:
-            self.is_mixing = False
-            self.mix_button.setEnabled(True)
-            self.mix_progress.hide()
+            QTimer.singleShot(500, lambda: self._finish_mixing())  # Delay hiding
+
 
     def schedule_real_time_mix(self):
         if not self.is_mixing:
@@ -290,6 +290,7 @@ class ModernWindow(QMainWindow):
         self.mix_button.clicked.connect(self.on_mix_button_clicked)
 
     def _finish_mixing(self):
+        self.is_mixing = False
         self.mix_button.setEnabled(True)
         self.mix_progress.hide()
 
@@ -299,9 +300,11 @@ class ModernWindow(QMainWindow):
             self.mix_progress.setValue(0)
             self.mix_progress.show()
             self.mix_button.setEnabled(False)
+            QApplication.processEvents()
             
             # Initial progress
             self.mix_progress.setValue(10)
+            QApplication.processEvents()
             logging.info("Mixing on progress.")
             # Store strong reference to output viewer
             output_index = self.output_selector.currentIndex()
@@ -385,6 +388,7 @@ class ModernWindow(QMainWindow):
                     
             # Update progress after components collected
             self.mix_progress.setValue(60)
+            QApplication.processEvents()
             if not components:
                 self.show_error("Please load images before mixing!")
                 return
@@ -401,6 +405,7 @@ class ModernWindow(QMainWindow):
                 result =  mix_real_imaginary(self, components)
             
             self.mix_progress.setValue(80)
+            QApplication.processEvents()
             print(7)
             # Cause of the data doesn't apply Shifting of zero by default
             mixed_image = np.fft.ifft2(result)
@@ -411,6 +416,7 @@ class ModernWindow(QMainWindow):
             mixed_image = mixed_image.astype(np.uint8)
 
             self.mix_progress.setValue(90)
+            QApplication.processEvents()
 
             print(9)
             qImage = convet_mixed_to_qImage(mixed_image)
@@ -423,25 +429,30 @@ class ModernWindow(QMainWindow):
             print(10)
 
             self.mix_progress.setValue(100)
+            QApplication.processEvents()
 
         except Exception as e:
             print(f"Error during mixing: {str(e)}")
             self.show_error(f"Mixing failed: {str(e)}")
         finally:
-            self.mix_button.setEnabled(True)
-            self.mix_progress.hide()
+            QTimer.singleShot(500, lambda: self._finish_mixing())
 
 
     def real_time_mix(self):
         try:
+            # Show progress bar at start
+            self.mix_progress.setValue(0)
+            self.mix_progress.show()
+            QApplication.processEvents()
+
             output_index = self.output_selector.currentIndex()
             output_viewer = self.outputViewers[output_index]
             if not output_viewer or not output_viewer.originalImageLabel:
                 return
 
-            # Collect and validate components
+            # Collect components
             components = []
-            for viewer in self.viewers:
+            for i, viewer in enumerate(self.viewers):
                 if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
                     ftComponents = []
                     if self.rectSize <= 5:
@@ -481,9 +492,14 @@ class ModernWindow(QMainWindow):
                         'weight1': weight1,
                         'weight2': weight2
                     })
+                    self.mix_progress.setValue(20 + (i * 15))
+                    QApplication.processEvents()
 
             if not components:
                 return
+
+            self.mix_progress.setValue(60)
+            QApplication.processEvents()
 
             # Get mixing type and perform mix
             mix_type = self.mix_type.currentText()
@@ -492,19 +508,34 @@ class ModernWindow(QMainWindow):
             else:
                 result = mix_real_imaginary(self, components)
 
+            self.mix_progress.setValue(80)
+            QApplication.processEvents()
+
             # Process result
             mixed_image = np.fft.ifft2(result)
             mixed_image = np.abs(mixed_image)
             mixed_image = ((mixed_image - mixed_image.min()) * 255 / (mixed_image.max() - mixed_image.min()))
             mixed_image = mixed_image.astype(np.uint8)
 
+            self.mix_progress.setValue(90)
+            QApplication.processEvents()
+
+            # Update display
             qImage = convet_mixed_to_qImage(mixed_image)
             if qImage and output_viewer and output_viewer.originalImageLabel:
                 pixmap = QPixmap.fromImage(qImage)
                 output_viewer.originalImageLabel.setPixmap(pixmap.scaled(300, 300, Qt.KeepAspectRatio))
 
+            self.mix_progress.setValue(100)
+            QApplication.processEvents()
+
         except Exception as e:
             print(f"Error during real-time mixing: {str(e)}")
+            if hasattr(self, 'show_error'):
+                self.show_error(f"Mixing failed: {str(e)}")
+        finally:
+            # Don't hide immediately to show completion
+            QTimer.singleShot(500, lambda: self._finish_mixing())
             
     def buildUI(self):
         # Main container
@@ -688,14 +719,15 @@ class ModernWindow(QMainWindow):
         mixing_group = QGroupBox("Mixing Controls")
         mixing_layout = QHBoxLayout(mixing_group)
 
-        # Create mix controls container
         mix_controls = QWidget()
         mix_controls_layout = QVBoxLayout(mix_controls)
-        mix_controls_layout.setContentsMargins(0, 0, 0, 0)
+        mix_controls_layout.setContentsMargins(5, 5, 5, 5)
+        mix_controls_layout.setSpacing(8)  # Add spacing between elements
 
         # Add mix button and progress bar
         self.mix_button = QPushButton("Start Mix")
         self.mix_button.setMinimumWidth(100)
+        self.mix_button.setFixedHeight(30)  # Set fixed height for button
         
         # In buildUI method
         self.mix_progress = QProgressBar()
@@ -703,7 +735,22 @@ class ModernWindow(QMainWindow):
         self.mix_progress.setMaximum(100)
         self.mix_progress.setValue(0)
         self.mix_progress.setTextVisible(True)
-        self.mix_progress.setFixedHeight(2)  # Make it slim
+        self.mix_progress.setFixedHeight(8)  # Increased height for better visibility
+        self.mix_progress.setStyleSheet(f"""
+            QProgressBar {{
+                background: {COLORS['surface']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                padding: 1px;
+                text-align: center;
+            }}
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                        stop:0 {COLORS['primary']}, 
+                                        stop:1 {COLORS['secondary']});
+                border-radius: 3px;
+            }}
+        """)
         self.mix_progress.hide()
 
         mix_controls_layout.addWidget(self.mix_button)
