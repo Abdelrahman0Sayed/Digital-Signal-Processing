@@ -976,8 +976,9 @@ class ImageViewerWidget(ModernWindow):
         while parent and not isinstance(parent, ModernWindow):
             parent = parent.parent()
         
-        if parent and hasattr(parent, 'real_time_mix'):
-            parent.real_time_mix()
+        if parent:
+            # Schedule the real-time mix instead of calling it directly
+            parent.schedule_real_time_mix()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and self.originalImageLabel.underMouse():
