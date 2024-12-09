@@ -722,6 +722,7 @@ class Ui_MainWindow(QMainWindow):
         self.samplingGraph.plot(original_time, reconstructed_signal, pen='r', name='Reconstructed Signal')
         self.samplingGraph.setXRange(0, 0.05)
         self.signalViewer.setXRange(0, 0.05)
+        self.differenceGraph.setXRange(0, 0.05)
 
         # Plot sample points with noise
         scatter = pg.ScatterPlotItem(t_sampled, sampled_signal, size=4, pen=pg.mkPen(None), 

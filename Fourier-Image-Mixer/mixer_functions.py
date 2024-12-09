@@ -1,8 +1,12 @@
 import numpy as np
+import time
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 # Done by ModernWindow
 def mix_magnitude_phase(self, components):
-    
+
     try:
         print("Start Mixing")
         first_ft = components[0]['ft']
@@ -34,6 +38,7 @@ def mix_magnitude_phase(self, components):
         print(f"Error in magnitude/phase mixing: {str(e)}")
         raise
 
+    
 
 
 

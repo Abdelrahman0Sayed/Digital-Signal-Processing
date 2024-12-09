@@ -212,38 +212,73 @@ class ModernWindow(QMainWindow):
             if not output_viewer or not output_viewer.originalImageLabel:
                 self.show_error("Invalid output viewer")
                 return
-                
+            print(2)
             self.mix_button.setEnabled(False)
             self.mix_progress.show()
             
-            print()
-
+            print(3)
             # Collect and validate components
             components = []
             for viewer in self.viewers:
                 if viewer and hasattr(viewer, 'fftComponents') and viewer.fftComponents is not None:
                     ftComponents = []
-                    if self.rectSize == 0:
+                    if self.rectSize <= 5:
                         ftComponents = viewer.fftComponents
                     else:
                         if self.inner_region.isChecked():
-                                print("Let's Mix Inner Region")
-                                print("The Size of the Rectangle is: ", self.rectSize)
-                                data_percentage = self.rectSize / 300
-                                ftComponents = viewer.fftComponents[:int(600 * data_percentage), :int(600 * data_percentage)]
-                                print("The Size of the Original Data is: ", viewer.fftComponents.shape)
-                                print("The Size of the Data is: ", ftComponents.shape)
+                            data_percentage = self.rectSize / 300
+
+                            # Create zero array same size as shifted input
+                            ftComponents = np.zeros_like(viewer.fftComponents)
+
+                            # Calculate region bounds (now centered at image center)
+                            center_x = viewer.fftComponents.shape[0] // 2
+                            center_y = viewer.fftComponents.shape[1] // 2    
+                            region_size = int(300 * data_percentage)
+
+                            print(f"Region size: {region_size}")
+
+                            # Copy only inner region from shifted data, rest remains zero
+                            ftComponents[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ] = viewer.fftComponents[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ]
+
+                            print("Original data shape:", viewer.fftComponents.shape)
+                            print("Shifted data shape:", ftComponents.shape)
                         else:
-                                print("Let's Mix Inner Region")
-                                print("The Size of the Rectangle is: ", self.rectSize)
-                                data_percentage = self.rectSize / 300
-                                ftComponents = viewer.fftComponents[int(600 * data_percentage):, int(600 * data_percentage):]
-                                print("The Size of the Original Data is: ", viewer.fftComponents.shape)
-                                print("The Size of the Data is: ", ftComponents.shape)
+                            data_percentage = self.rectSize / 300
+                            
+                            # Create zero array same size as input
+                            ftComponents = np.copy(viewer.fftComponents)
+
+                            # Calculate region bounds
+                            center_x = viewer.fftComponents.shape[0] // 2
+                            center_y = viewer.fftComponents.shape[1] // 2
+                            region_size = int(300 * data_percentage)
+
+                            # Set inner region to zero, keep outer region
+                            mask = np.ones_like(ftComponents)
+                            mask[
+                                center_x - region_size:center_x + region_size,
+                                center_y - region_size:center_y + region_size
+                            ] = 0
+
+                            # Apply mask to keep only outer region
+                            ftComponents = ftComponents * mask
+
+                            print("The Size of the Original Data is: ", viewer.fftComponents.shape)
+                            print("The Size of the Data is: ", ftComponents.shape)
+
 
                     weight1 = viewer.weight1_slider.value() / 100.0
                     weight2 = viewer.weight2_slider.value() / 100.0
-                    
+
+
+
                     components.append({
                         'ft': ftComponents.copy(),
                         'weight1': weight1,
@@ -255,10 +290,11 @@ class ModernWindow(QMainWindow):
             if not components:
                 self.show_error("Please load images before mixing!")
                 return
-
+            print(4)
             # Get mixing type and perform mix
             mix_type = self.mix_type.currentText()
             if mix_type == "Magnitude/Phase":
+                print(5)
                 print("We Should Apply Magnitude / Phase Mixing")
                 result = mix_magnitude_phase(self, components)
                 print(result.shape)
@@ -266,14 +302,16 @@ class ModernWindow(QMainWindow):
                 print("We Should Apply Real / Imaginary Mixing")
                 result =  mix_real_imaginary(self, components)
                 
+            print(7)
             # Cause of the data doesn't apply Shifting of zero by default
-            mixed_image = np.fft.ifftshift(result)
-            mixed_image = np.fft.ifft2(mixed_image)
+            mixed_image = np.fft.ifft2(result)
 
+            print(8)
             mixed_image = np.abs(mixed_image)
             mixed_image = ((mixed_image - mixed_image.min()) * 255 / (mixed_image.max() - mixed_image.min()))
             mixed_image = mixed_image.astype(np.uint8)
 
+            print(9)
             qImage = convet_mixed_to_qImage(mixed_image)
             if qImage is None:
                 print("Image is None")
@@ -281,7 +319,7 @@ class ModernWindow(QMainWindow):
             if output_viewer and output_viewer.originalImageLabel:
                 pixmap = QPixmap.fromImage(qImage)
                 output_viewer.originalImageLabel.setPixmap(pixmap.scaled(300, 300 ,Qt.KeepAspectRatio))
-
+            print(10)
 
         except Exception as e:
             print(f"Error during mixing: {str(e)}")
@@ -406,13 +444,16 @@ class ModernWindow(QMainWindow):
         self.inner_region = QRadioButton("Inner")
         self.outer_region = QRadioButton("Outer")
         self.inner_region.setChecked(True)
+        self.inner_region.clicked.connect(lambda: self.changeRegion("Inner"))
+        self.outer_region.clicked.connect(lambda: self.changeRegion("Outer"))
         
+        self.region = "Inner"
 
         self.region_size = QSlider(Qt.Horizontal)
         self.region_size.setRange(1, 300)
         self.region_size.setValue(0)
         self.region_size.setSingleStep(5)  # Set the step size to 5
-        self.region_size.valueChanged.connect(lambda: draw_rectangle(self, self.viewers, self.region_size.value()))
+        self.region_size.valueChanged.connect(lambda: draw_rectangle(self, self.viewers, self.region_size.value() , self.region))
         self.region_size.setToolTip("Adjust the size of selected region")
         
 
@@ -491,6 +532,9 @@ class ModernWindow(QMainWindow):
 
         self._setup_connection()
 
+    def changeRegion(self, region):
+        self.region = region
+        draw_rectangle(self, self.viewers , self.region_size.value() ,self.region)
 
     def update_mixing_mode(self, index):
         mode = self.mix_type.currentText()
@@ -644,7 +688,7 @@ class ImageViewerWidget(ModernWindow):
         layout = QVBoxLayout(self.container)
         self.setCentralWidget(self.container)
         layout.setContentsMargins(10, 10, 10, 10)
-
+        
         # Header with title
         header = QWidget()
         header_layout = QHBoxLayout(header)

@@ -93,7 +93,7 @@ def convert_data_to_image(imageData):
 def imageFourierTransform(self, imageData):
     fftComponents = np.fft.fft2(imageData)
     fftComponentsShifted = np.fft.fftshift(fftComponents)
-    self.fftComponents= fftComponentsShifted
+    self.fftComponents= fftComponents
     # Get Magnitude and Phase
     self.ftMagnitudes = np.abs(fftComponents)
     self.ftPhase = np.angle(fftComponents)
@@ -114,8 +114,12 @@ def displayFrequencyComponent(self, PlottedComponent):
         
     if PlottedComponent == "FT Magnitude":
         # Take the Magnitude as log scale
-        ftMagnitudesShifted = np.fft.fftshift(self.ftMagnitudes)
-        ftLog = 15 * np.log(ftMagnitudesShifted + 1e-10).astype(np.uint8)
+        
+        
+        #ftMagnitudes = np.fft.fftshift(self.ftMagnitudes)
+        ftMagnitudes = self.ftMagnitudes
+
+        ftLog = 15 * np.log(ftMagnitudes + 1e-10).astype(np.uint8)
         ftNormalized = ftLog / ftLog.max() * 255
         pil_image = Image.fromarray(np.uint8(ftNormalized)) 
         qimage = convert_from_pil_to_qimage(pil_image)
@@ -135,8 +139,12 @@ def displayFrequencyComponent(self, PlottedComponent):
 
     elif PlottedComponent == "FT Phase":
         # Ensure phase is within -pi to pi range and Ajdust for visualization (between 0 - 255)
-        ftPhaseShifted = np.fft.fftshift(self.ftPhase)
-        f_wrapped = np.angle(np.exp(1j * ftPhaseShifted))  
+        
+        
+        #ftPhases = np.fft.fftshift(self.ftPhase)
+        ftPhases = self.ftPhase
+
+        f_wrapped = np.angle(np.exp(1j * ftPhases))  
         f_normalized = (f_wrapped + np.pi) / (2 * np.pi) * 255
         
         pil_image = Image.fromarray(np.uint8(f_normalized)) 
@@ -154,8 +162,10 @@ def displayFrequencyComponent(self, PlottedComponent):
     elif PlottedComponent == "FT Real":
         
         # Normalization and Adjustment for visualization
-        ftRealShifted = np.fft.fftshift(self.ftReal)
-        ftNormalized = np.abs(ftRealShifted)
+        
+        #ftReals = np.fft.fftshift(self.ftReal)
+        ftReals = self.ftReal
+        ftNormalized = np.abs(ftReals)
         
         
         pil_image = Image.fromarray(np.uint8(ftNormalized)) 
@@ -170,8 +180,10 @@ def displayFrequencyComponent(self, PlottedComponent):
         
         self.ftComponentLabel.setPixmap(pixmap)
     elif PlottedComponent == "FT Imaginary":
-        ftImaginary = np.fft.fftshift(self.ftImaginary)
-        ftNormalized = np.abs(ftImaginary)
+        
+        #ftImaginaries = np.fft.fftshift(self.ftImaginary)
+        frImaginaries = self.ftImaginary
+        ftNormalized = np.abs(frImaginaries)
         
         
         pil_image = Image.fromarray(np.uint8(ftNormalized)) 
