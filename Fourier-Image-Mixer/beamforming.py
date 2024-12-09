@@ -372,13 +372,15 @@ class BeamformingSimulator(QMainWindow):
         return x, y
 
     def calculate_combined_pattern(self):
-        k = 2 * np.pi
         theta = np.linspace(-np.pi/2, np.pi/2, 1000)
         pattern = np.zeros_like(theta, dtype=np.complex128)
         interference = np.zeros_like(self.X, dtype=np.complex128)
         
         all_x = []
         all_y = []
+        
+        # Count total active frequencies across all units for averaging
+        total_freq_count = sum(len(unit.operating_freqs) for unit in self.array_units if unit.enabled)
         
         for unit in self.array_units:
             if not unit.enabled:
@@ -389,23 +391,28 @@ class BeamformingSimulator(QMainWindow):
             all_y.extend(y)
             theta_steer = np.radians(unit.steering_angle)
             
-            # Add to beam pattern
-            for i in range(len(theta)):
-                phase = k * (x * np.sin(theta[i]) + y * np.cos(theta[i]))
-                steer_phase = k * x * np.sin(theta_steer)
-                pattern[i] += np.sum(np.exp(1j * (phase - steer_phase)))
-            
-            # Add to interference map
-            for i in range(len(x)):
-                r = np.sqrt((self.X - x[i])**2 + (self.Y - y[i])**2)
-                phase = k * r
-                steer_phase = k * x[i] * np.sin(theta_steer)
-                interference += np.exp(1j * (phase - steer_phase))
+            # Calculate for each frequency
+            for freq in unit.operating_freqs:
+                k = 2 * np.pi * freq  # Scale wavenumber by frequency
+                
+                # Add to beam pattern
+                for i in range(len(theta)):
+                    phase = k * (x * np.sin(theta[i]) + y * np.cos(theta[i]))
+                    steer_phase = k * x * np.sin(theta_steer)
+                    pattern[i] += np.sum(np.exp(1j * (phase - steer_phase)))
+                
+                # Add to interference map
+                for i in range(len(x)):
+                    r = np.sqrt((self.X - x[i])**2 + (self.Y - y[i])**2)
+                    phase = k * r
+                    steer_phase = k * x[i] * np.sin(theta_steer)
+                    interference += np.exp(1j * (phase - steer_phase))
         
-        pattern = np.abs(pattern)
+        # Normalize by total number of frequencies
+        pattern = np.abs(pattern) / total_freq_count
         pattern = pattern / np.max(pattern)
         
-        interference = np.abs(interference)
+        interference = np.abs(interference) / total_freq_count
         interference = interference / np.max(interference)
         
         # Update visualizations
