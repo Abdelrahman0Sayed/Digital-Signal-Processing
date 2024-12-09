@@ -16,6 +16,14 @@ from PyQt5.QtGui import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from mixer_functions import mix_magnitude_phase, mix_real_imaginary
 from control_functions import draw_rectangle, clear_rectangle
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the logging level
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="app.log",  # Log to a file
+    filemode="a",  # Append to the file; use "w" for overwriting
+)
 
 
 
@@ -284,7 +292,7 @@ class ModernWindow(QMainWindow):
 
     def on_mix_button_clicked(self):
         try:
-            print("Mix button clicked")
+            logging.info("Mixing on progress.")
             # Store strong reference to output viewer
             output_index = self.output_selector.currentIndex()
             output_viewer = self.outputViewers[output_index]
@@ -484,6 +492,8 @@ class ModernWindow(QMainWindow):
             
     def buildUI(self):
         # Main container
+        logging.info("Starting Application.")
+
         self._ui_initialized = True
         self.container = QWidget()
         layout = QVBoxLayout(self.container)
@@ -515,7 +525,7 @@ class ModernWindow(QMainWindow):
 
         for btn_data in [(" ⚊ ", self.showMinimized), 
                 (" ☐ ", self.toggleMaximized),
-                ("✕     انطر ابلكاش", self.close)]:
+                ("✕     انطر ابلكاش", self.logExit)]:
             btn = QPushButton(btn_data[0])
             btn.setFixedSize(124, 24)
             btn.clicked.connect(btn_data[1])
@@ -690,6 +700,10 @@ class ModernWindow(QMainWindow):
 
         self._setup_connection()
 
+    def logExit(self):
+        logging.info("Exiting Application.")
+        self.close()
+
     def _on_region_size_changed(self):
         draw_rectangle(self, self.viewers, self.region_size.value(), self.region)
         self.real_time_mix()
@@ -847,6 +861,7 @@ class ImageViewerWidget(ModernWindow):
 
 
     def build_ui(self, title):
+        
         self.container = QWidget()
         layout = QVBoxLayout(self.container)
         self.setCentralWidget(self.container)
@@ -1073,7 +1088,8 @@ class ImageViewerWidget(ModernWindow):
             if self.qImage is None or self.imageData is None:
                 raise Exception("Failed to load image")
             print("Image Loaded")
-                
+            logging.info("Loading an Image.")
+
             
             # Display original image
             pixmapImage = QPixmap.fromImage(self.qImage)
@@ -1456,3 +1472,4 @@ if __name__ == '__main__':
     window.controller = MainController(window)  # Set controller after window creation
     window.show()
     sys.exit(app.exec_())
+    
