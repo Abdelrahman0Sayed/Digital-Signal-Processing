@@ -503,16 +503,15 @@ class Ui_MainWindow(QMainWindow):
             self.samplingFrequency = float(samplingFrequency)
             print(f"Sampling Frequency: {self.samplingFrequency}")
 
-            self.samplingFactor = float(f"{self.samplingFrequency / self.f_max:.1f}")
-            print(f"Sampling Factor: {self.samplingFactor:.1f}")
-            
-            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+            self.samplingFactor = float(f"{self.samplingFrequency / self.f_max:.2f}")
+
+            self.samplingFactorInput.setText(f"{self.samplingFactor:.2f}")
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
             # Set the value in the input field
-            input_field.setText(f"{self.samplingFrequency:.1f}")
+            input_field.setText(f"{self.samplingFrequency:.2f}")
 
-            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+            self.samplingFactorLabel.setText(f"{self.samplingFactor:.2f}")
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
         except ValueError:
