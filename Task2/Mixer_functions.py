@@ -522,7 +522,7 @@ def open_examples_dialog(self, add_command_bool= False):
     dialog.setWindowTitle("Choose an Example")
     layout = QVBoxLayout()
 
-    examples = ["Lec Example", "Amplitude Modulation", "Constructive Interference", "Beats"]
+    examples = ["Aliasing Example", "Aliasing Example 2", "Constructive Interference", "Descrutive Interference"]
 
     for example in examples:
         button = self.createButton(example)
@@ -536,15 +536,19 @@ def open_examples_dialog(self, add_command_bool= False):
 
 def select_example(self, example_name, dialog, add_command_bool= False):
     signal = None  # Initialize a signal variable
-
-    if example_name == "Lec Example":
-        signal = generate_signal(self,"Sin", 1, 2, 0) + generate_signal(self,"Sin", 1, 6, 0)
-    elif example_name == "Amplitude Modulation":
+    
+    if example_name == "Aliasing Example":
+        signal = generate_signal(self,"Sin", 1, 11, 0) + generate_signal(self,"Sin", 1, 10, 0)
+    
+    elif example_name == "Descrutive Interference":
+        signal = generate_signal(self,"Sin", 1, 3, 0) + generate_signal(self,"Sin", 1, 9, 180)
+    
+    elif example_name == "Aliasing Example 2":
         signal = generate_signal(self,"Sin", 1, 50, 0) + generate_signal(self,"Sin", 0.5, 5, 0)
+    
     elif example_name == "Constructive Interference":
         signal = generate_signal(self,"Sin", 1, 5, 0) + generate_signal(self,"Sin", 1, 5, 0)
-    elif example_name == "Beats":
-        signal = generate_signal(self,"Sin", 1, 10, 0) + generate_signal(self,"Sin", 1, 11, 0)
+    
     
     if signal is not None:
         # Store the signal and example name in instance variables

@@ -17,9 +17,10 @@ from scipy import signal
 from Mixer import Mixer
 import matplotlib.pyplot as plt
 from Mixer_functions import handle_component_button, delete_signal, select_signal, update_signal_real_time, undo, redo, update_undo_redo_buttons, generate_signal, on_parameter_changed, update_plot, load_signals_from_json, select_example, open_examples_dialog
+from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
 from style import COLORS, BROWSE_BUTTON_STYLE, OPTIONS_GROUP_STYLE, SLIDER_STYLE, LIST_STYLE, COMBO_STYLE, MAIN_WINDOW_STYLE,LINE_EDIT_STYLE,BUTTON_STYLE
-
+ 
 
 class Ui_MainWindow(QMainWindow):
 
@@ -300,12 +301,25 @@ class Ui_MainWindow(QMainWindow):
         self.optionsLayout.addRow(self.snr_slider)
         self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
 
+
         # Create a horizontal layout to add spacing between the label and its value
         samplingFactorLayout = QtWidgets.QHBoxLayout()
         samplingFactorLabel = self.createLabel("Nquist Rate:")
         samplingFactorLayout.addWidget(samplingFactorLabel)
         samplingFactorLayout.addStretch()  # Adds flexible space
-        samplingFactorLayout.addWidget(self.samplingFactorLabel)  # Add the value labe
+
+
+        # Replace the label with an input field
+        self.samplingFactorInput = QtWidgets.QLineEdit()
+        validator = QDoubleValidator()
+        validator.setNotation(QDoubleValidator.StandardNotation)
+        self.samplingFactorInput.setValidator(validator)
+
+        self.samplingFactorInput.setFixedWidth(70)
+        self.samplingFactorInput.setStyleSheet(LINE_EDIT_STYLE)
+        self.samplingFactorInput.textChanged.connect(lambda: self.changeSamplingFactor(self.samplingFactorInput, self.samplingFactorInput.text()))
+        samplingFactorLayout.addWidget(self.samplingFactorInput)  
+
         self.optionsLayout.addRow(samplingFactorLayout)
         self.optionsLayout.addRow(self.sampling_factor)
         self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
@@ -315,7 +329,19 @@ class Ui_MainWindow(QMainWindow):
         samplingFrequencyLabel = self.createLabel("Sampling Frequency:")
         samplingFrequencyLayout.addWidget(samplingFrequencyLabel)
         samplingFrequencyLayout.addStretch()  # Adds flexible space
-        samplingFrequencyLayout.addWidget(self.samplingFrequencyLabel)  # Add the value label
+
+        # Create the input field
+        self.samplingFrequencyInput = QtWidgets.QLineEdit()
+        validator = QDoubleValidator()
+        validator.setNotation(QDoubleValidator.StandardNotation)
+        self.samplingFrequencyInput.setValidator(validator)
+
+        self.samplingFrequencyInput.setFixedWidth(70)
+        self.samplingFrequencyInput.setStyleSheet(LINE_EDIT_STYLE)
+        self.samplingFrequencyInput.textChanged.connect(lambda: self.changeSamplingFrequency(self.samplingFrequencyInput, self.samplingFrequencyInput.text()))
+        samplingFrequencyLayout.addWidget(self.samplingFrequencyInput)
+
+
         self.optionsLayout.addRow(samplingFrequencyLayout)
         self.optionsLayout.addRow(self.sampling_frequency)
         self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
@@ -472,17 +498,26 @@ class Ui_MainWindow(QMainWindow):
     def showMixer(self):
         self.mixer.show()
 
+    def changeSamplingFrequency(self, input_field, samplingFrequency):
+        try:
+            self.samplingFrequency = float(samplingFrequency)
+            print(f"Sampling Frequency: {self.samplingFrequency}")
 
-    def changeSamplingFrequency(self, label, samplingFrequency):
-        self.samplingFrequency = float(samplingFrequency)
-        print(f"Sampling Frequency: {self.samplingFrequency}")
+            self.samplingFactor = float(f"{self.samplingFrequency / self.f_max:.1f}")
+            print(f"Sampling Factor: {self.samplingFactor:.1f}")
+            
+            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+            self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
-        self.samplingFactor= float(f"{samplingFrequency / self.f_max:.1f}")
-        print(f"Sampling Factor: {self.samplingFactor:.1f}")
-        
-        self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
-        self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
+            # Set the value in the input field
+            input_field.setText(f"{self.samplingFrequency:.1f}")
 
+            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+            self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
+
+        except ValueError:
+            # Handle the case where the text cannot be converted to a float
+            print("Invalid input for sampling frequency")
         
 
 
@@ -502,7 +537,7 @@ class Ui_MainWindow(QMainWindow):
             
             # Ensure we're passing a number to setText
             if isinstance(self.samplingFrequency, (int, float)):
-                label.setText(f"{self.samplingFactor:.2f}")
+                label.setText(f"{self.samplingFactor:.1f}")
                 self.sampling_frequency.setValue(int(self.samplingFrequency))
                 self.samplingFrequencyLabel.setText(f"{float(self.samplingFrequency):.2f}")
             else:
@@ -680,13 +715,13 @@ class Ui_MainWindow(QMainWindow):
         if sampling_frequency is not None:
             f_s = sampling_frequency
         else:
-            f_s = (self.samplingFactor + 0.05) * f_max
+            f_s = (self.samplingFactor) * f_max
         
         self.samplingFrequency = f"{f_s:.2f}"
         T = original_time[-1]
 
         # Calculate number of samples 
-        num_samples = max(4,int(f_s * T))   
+        num_samples = max(2,int(f_s * T))   
         
         # Get SNR value from slider
         snr_db = self.snr_slider.value()
@@ -695,6 +730,9 @@ class Ui_MainWindow(QMainWindow):
         t_sampled = np.linspace(0, T, num_samples)
         sampled_signal = np.interp(t_sampled, original_time, original_signal)
 
+        if len(t_sampled) < 2:
+            print("Error: Not enough sampled points to perform interpolation.")
+            return
         # Add noise only to the sampled points
         if snr_db < 50:  # Only add noise if SNR is less than maximum
             signal_power = np.mean(sampled_signal ** 2)
@@ -723,6 +761,7 @@ class Ui_MainWindow(QMainWindow):
         self.samplingGraph.setXRange(0, 0.05)
         self.signalViewer.setXRange(0, 0.05)
         self.differenceGraph.setXRange(0, 0.05)
+        self.differenceGraph.setYRange(min(self.signalData), max(self.signalData))
 
         # Plot sample points with noise
         scatter = pg.ScatterPlotItem(t_sampled, sampled_signal, size=4, pen=pg.mkPen(None), 
@@ -745,16 +784,19 @@ class Ui_MainWindow(QMainWindow):
         metrics = self.calculate_reconstruction_metrics(original_signal, reconstructed_signal)
         
         # Add metrics text to difference plot
-        metrics_text = (f"MSE: {metrics['MSE']:.2e}\n"
-                    f"RMSE: {metrics['RMSE']:.2e}\n"
-                    f"SNR: {metrics['SNR']:.2f} dB\n"
-                    f"Max Error: {metrics['MAX_ERROR']:.2e}")
-        
+        metrics_text = (f"MSE: {metrics['MSE']:.2e}\n")
+
         text_item = pg.TextItem(
             text=metrics_text,
             color='w',
             anchor=(0, 0)
         )
+
+        # Set the font size
+        font = QFont()
+        font.setPointSize(18)  # Adjust the size as needed
+        text_item.setFont(font)
+
         self.differenceGraph.addItem(text_item)
         text_item.setPos(0, max(difference_signal))
 

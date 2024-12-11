@@ -76,6 +76,7 @@ LINE_EDIT_STYLE = f"""
         border: 1px solid {COLORS['border']};
         border-radius: 4px;
         padding: 4px 8px;
+        font-size: 14px;    
     }}
     QLineEdit:focus {{
         border-color: {COLORS['primary']};
