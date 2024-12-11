@@ -302,14 +302,13 @@ class Ui_MainWindow(QMainWindow):
         self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
 
 
-        # Create a horizontal layout to add spacing between the label and its value
+        ##### Change Sampling Factor #####
         samplingFactorLayout = QtWidgets.QHBoxLayout()
         samplingFactorLabel = self.createLabel("Nquist Rate:")
         samplingFactorLayout.addWidget(samplingFactorLabel)
         samplingFactorLayout.addStretch()  # Adds flexible space
 
 
-        # Replace the label with an input field
         self.samplingFactorInput = QtWidgets.QLineEdit()
         validator = QDoubleValidator()
         validator.setNotation(QDoubleValidator.StandardNotation)
@@ -317,20 +316,24 @@ class Ui_MainWindow(QMainWindow):
 
         self.samplingFactorInput.setFixedWidth(70)
         self.samplingFactorInput.setStyleSheet(LINE_EDIT_STYLE)
-        self.samplingFactorInput.textChanged.connect(lambda: self.changeSamplingFactor(self.samplingFactorInput, self.samplingFactorInput.text()))
+        self.samplingFactorInput.textChanged.connect(lambda: self.changeSamplingFactor(self.samplingFrequencyInput, self.samplingFactorInput.text()))
         samplingFactorLayout.addWidget(self.samplingFactorInput)  
 
         self.optionsLayout.addRow(samplingFactorLayout)
         self.optionsLayout.addRow(self.sampling_factor)
-        self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
+        self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
 
+
+
+
+        ##### Change Sampling Frequency #####
         samplingFrequencyLayout = QtWidgets.QHBoxLayout()
         samplingFrequencyLabel = self.createLabel("Sampling Frequency:")
         samplingFrequencyLayout.addWidget(samplingFrequencyLabel)
         samplingFrequencyLayout.addStretch()  # Adds flexible space
 
-        # Create the input field
+
         self.samplingFrequencyInput = QtWidgets.QLineEdit()
         validator = QDoubleValidator()
         validator.setNotation(QDoubleValidator.StandardNotation)
@@ -338,13 +341,15 @@ class Ui_MainWindow(QMainWindow):
 
         self.samplingFrequencyInput.setFixedWidth(70)
         self.samplingFrequencyInput.setStyleSheet(LINE_EDIT_STYLE)
-        self.samplingFrequencyInput.textChanged.connect(lambda: self.changeSamplingFrequency(self.samplingFrequencyInput, self.samplingFrequencyInput.text()))
+        self.samplingFrequencyInput.textChanged.connect(lambda: self.changeSamplingFrequency(self.samplingFactorInput, self.samplingFrequencyInput.text()))
         samplingFrequencyLayout.addWidget(self.samplingFrequencyInput)
-
 
         self.optionsLayout.addRow(samplingFrequencyLayout)
         self.optionsLayout.addRow(self.sampling_frequency)
-        self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  # Add vertical space
+        self.optionsLayout.addItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))  
+
+
+
 
        
 
@@ -353,10 +358,10 @@ class Ui_MainWindow(QMainWindow):
         self.optionsLayout.addRow(self.createLabel("Frequency Domain Mode:"), self.frequencyPlotting)
 
         self.sampling_factor.valueChanged.connect(  
-            lambda: self.changeSamplingFactor(self.samplingFactorLabel, self.sampling_factor.value() * 0.1)
+            lambda: self.changeSamplingFactor(self.samplingFrequencyInput, self.sampling_factor.value() * 0.1)
         )
         self.sampling_frequency.valueChanged.connect(
-            lambda: self.changeSamplingFrequency(self.samplingFrequencyLabel, self.sampling_frequency.value())
+            lambda: self.changeSamplingFrequency(self.samplingFactorInput, self.sampling_frequency.value())
         )
         
 
@@ -498,21 +503,18 @@ class Ui_MainWindow(QMainWindow):
     def showMixer(self):
         self.mixer.show()
 
-    def changeSamplingFrequency(self, input_field, samplingFrequency):
+    def changeSamplingFrequency(self, sample_factor_label, samplingFrequency):
         try:
             self.samplingFrequency = float(samplingFrequency)
             print(f"Sampling Frequency: {self.samplingFrequency}")
 
             self.samplingFactor = float(f"{self.samplingFrequency / self.f_max:.1f}")
             print(f"Sampling Factor: {self.samplingFactor:.1f}")
-            
-            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+    
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
-            # Set the value in the input field
-            input_field.setText(f"{self.samplingFrequency:.1f}")
-
-            self.samplingFactorLabel.setText(f"{self.samplingFactor:.1f}")
+            sample_factor_label.setText(f"{self.samplingFactor:.2f}")
+            print("Sampling Factor became: ", self.samplingFactor)
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
         except ValueError:
@@ -521,7 +523,7 @@ class Ui_MainWindow(QMainWindow):
         
 
 
-    def changeSamplingFactor(self, label, samplingFactor):
+    def changeSamplingFactor(self, sampling_frequency_input, samplingFactor):
         self.samplingFactor = float(samplingFactor)
         
         # Debug prints
@@ -537,9 +539,8 @@ class Ui_MainWindow(QMainWindow):
             
             # Ensure we're passing a number to setText
             if isinstance(self.samplingFrequency, (int, float)):
-                label.setText(f"{self.samplingFactor:.1f}")
+                sampling_frequency_input.setText(f"{self.samplingFrequency:.2f}")
                 self.sampling_frequency.setValue(int(self.samplingFrequency))
-                self.samplingFrequencyLabel.setText(f"{float(self.samplingFrequency):.2f}")
             else:
                 print(f"Invalid sampling frequency type: {type(self.samplingFrequency)}") 
         else:
