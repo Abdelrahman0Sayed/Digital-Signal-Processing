@@ -226,7 +226,8 @@ class Ui_MainWindow(QMainWindow):
         self.snr_slider.setTickInterval(5) 
         self.snr_slider.setSingleStep(1)  
         self.snr_slider.setTickPosition(QSlider.TicksBelow)
-        self.snr_slider.valueChanged.connect(lambda: update_plot(self, True))
+        self.snr_slider.valueChanged.connect(lambda: 
+        (self, True))
 
 
         # Sampling Factor Slider
