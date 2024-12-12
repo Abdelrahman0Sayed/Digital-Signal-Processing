@@ -308,6 +308,12 @@ class Ui_MainWindow(QMainWindow):
         samplingFactorLayout.addWidget(samplingFactorLabel)
         samplingFactorLayout.addStretch()  # Adds flexible space
 
+        samplingFactorLayout.addItem(QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
+
+        self.factorMiddleLabel = self.createLabel("0 Fmax")
+        samplingFactorLayout.addWidget(self.factorMiddleLabel)
+
+        samplingFactorLayout.addItem(QtWidgets.QSpacerItem(60, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
         # Replace the label with an input field
         self.samplingFactorInput = QtWidgets.QLineEdit()
@@ -330,6 +336,15 @@ class Ui_MainWindow(QMainWindow):
         samplingFrequencyLayout.addWidget(samplingFrequencyLabel)
         samplingFrequencyLayout.addStretch()  # Adds flexible space
 
+
+
+
+
+        self.middleLabel = self.createLabel("0 HZ")
+        samplingFrequencyLayout.addWidget(self.middleLabel)
+
+        samplingFrequencyLayout.addItem(QtWidgets.QSpacerItem(20, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
+
         # Create the input field
         self.samplingFrequencyInput = QtWidgets.QLineEdit()
         validator = QDoubleValidator()
@@ -339,6 +354,7 @@ class Ui_MainWindow(QMainWindow):
         self.samplingFrequencyInput.setFixedWidth(70)
         self.samplingFrequencyInput.setStyleSheet(LINE_EDIT_STYLE)
         self.samplingFrequencyInput.textChanged.connect(lambda: self.changeSamplingFrequency(self.samplingFrequencyInput, self.samplingFrequencyInput.text()))
+        
         samplingFrequencyLayout.addWidget(self.samplingFrequencyInput)
 
 
@@ -505,13 +521,14 @@ class Ui_MainWindow(QMainWindow):
 
             self.samplingFactor = float(f"{self.samplingFrequency / self.f_max:.2f}")
 
-            self.samplingFactorInput.setText(f"{self.samplingFactor:.2f}")
+            self.factorMiddleLabel.setText(f"{float(self.samplingFactor):.2f} Fmax")
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
+            self.middleLabel.setText(f"{float(self.samplingFrequency):.2f} HZ")
 
             # Set the value in the input field
             input_field.setText(f"{self.samplingFrequency:.2f}")
 
-            self.samplingFactorLabel.setText(f"{self.samplingFactor:.2f}")
+            # self.samplingFactorLabel.setText(f"{self.samplingFactor:.2f}")
             self.sampling_factor.setValue(int(self.samplingFactor / 0.1))
 
         except ValueError:
@@ -536,9 +553,10 @@ class Ui_MainWindow(QMainWindow):
             
             # Ensure we're passing a number to setText
             if isinstance(self.samplingFrequency, (int, float)):
-                label.setText(f"{self.samplingFactor:.1f}")
+                label.setText(f"{self.samplingFactor:.2f}")
+                self.factorMiddleLabel.setText(f"{float(self.samplingFactor):.2f} Fmax")
                 self.sampling_frequency.setValue(int(self.samplingFrequency))
-                self.samplingFrequencyLabel.setText(f"{float(self.samplingFrequency):.2f}")
+                self.middleLabel.setText(f"{float(self.samplingFrequency):.2f} HZ")
             else:
                 print(f"Invalid sampling frequency type: {type(self.samplingFrequency)}") 
         else:
