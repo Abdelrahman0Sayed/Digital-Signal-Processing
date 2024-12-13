@@ -251,119 +251,103 @@ STYLES['SLIDER_VALUE'] = f"""
     }}
 """
 
-def addSlider(self, label, min_val, max_val, value):
-    # Create container for the entire slider group
-    sliderWidget = QtWidgets.QWidget()
-    sliderLayout = QtWidgets.QVBoxLayout(sliderWidget)
-    sliderLayout.setSpacing(2)
-    sliderLayout.setContentsMargins(5, 5, 5, 10)
+def change_mode(self, mode):
+    """Handle mode changes"""
+    self.current_mode = mode
     
-    # Create header container
-    headerContainer = QtWidgets.QWidget()
-    headerContainer.setStyleSheet(f"background: transparent;")
-    headerLayout = QtWidgets.QHBoxLayout(headerContainer)
-    headerLayout.setContentsMargins(0, 0, 0, 0)
+    if mode == "Music and Animals":
+        self.create_music_animal_sliders()
+        self.hide_wiener_controls()
+        self.slidersContainer.show()
+        
+    elif mode == "Vocals and Phonemes":
+        self.create_vocal_phoneme_sliders()
+        self.hide_wiener_controls()
+        self.slidersContainer.show()
+        
+    elif mode == "Wiener Filter":
+        self.clear_sliders()
+        self.show_wiener_controls()
+        self.slidersContainer.hide()
     
-    # Label
-    labelWidget = QtWidgets.QLabel(label)
-    labelWidget.setStyleSheet(STYLES['SLIDER_LABEL'])
+    # Update equalization if signal loaded
+    if hasattr(self, 'signalData') and len(self.signalData) > 1:
+        if mode == "Music and Animals":
+            self.apply_music_animal_equalization()
+        elif mode == "Vocals and Phonemes":
+            self.apply_vocal_phoneme_equalization()
+
+
+def clear_sliders(self):
+    """Clear all existing sliders"""
+    for slider in self.sliders:
+        slider.deleteLater()
+    for label in self.sliderLabels:
+        label.deleteLater()
+    self.sliders = []
+    self.sliderLabels = []
     
-    # Value label with modern pill shape
-    valueLabel = QtWidgets.QLabel(f"{value} dB")
-    valueLabel.setStyleSheet(STYLES['SLIDER_VALUE'])
-    valueLabel.setMinimumWidth(60)
-    valueLabel.setAlignment(QtCore.Qt.AlignCenter)
+def add_slider(self, name, min_freq, max_freq):
+    """Add a slider with frequency range label"""
+    # Create container for slider group
+    container = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(container)
+    layout.setContentsMargins(0, 0, 0, 10)
     
-    # Add labels to header
-    headerLayout.addWidget(labelWidget)
-    headerLayout.addStretch()
-    headerLayout.addWidget(valueLabel)
+    # Add label with name and frequency range
+    label = QtWidgets.QLabel(f"{name} ({min_freq}-{max_freq} Hz)")
+    label.setStyleSheet(f"""
+        color: {COLORS['text']};
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 2px;
+    """)
+    layout.addWidget(label)
     
-    # Create and style slider
+    # Create slider
     slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-    slider.setMinimum(min_val)
-    slider.setMaximum(max_val)
-    slider.setValue(value)
-    slider.setStyleSheet(STYLES['SLIDER'])
-    
-    # Add tick marks
-    slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
-    slider.setTickInterval(10)
-    
-    # Update value label when slider moves
-    slider.valueChanged.connect(lambda v: valueLabel.setText(f"{v} dB"))
-    
-    # Add widgets to layout
-    sliderLayout.addWidget(headerContainer)
-    sliderLayout.addWidget(slider)
+    slider.setMinimum(0)
+    slider.setMaximum(100)
+    slider.setValue(0)
+    slider.setStyleSheet(f"""
+        QSlider::groove:horizontal {{
+            border: 1px solid {COLORS['accent']};
+            height: 8px;
+            background: {COLORS['secondary']};
+            margin: 2px 0;
+            border-radius: 4px;
+        }}
 
-    self.slidersInnerLayout.addWidget(sliderWidget)
-    return slider
+        QSlider::handle:horizontal {{
+            background: {COLORS['accent']};
+            border: none;
+            width: 18px;
+            margin: -6px 0;
+            border-radius: 9px;
+        }}
 
-def changeMode(ui, mode):
-    print(f"Changing mode to: {mode}")
+        QSlider::handle:horizontal:hover {{
+            background: {COLORS['button_hover']};
+        }}
+    """)
     
-    # Check if signal data exists
-    if not hasattr(ui, 'signalData') or ui.signalData is None or len(ui.signalData) == 0:
-        print("No signal data loaded. Loading mode without processing.")
-        ui.current_mode = mode
+    # Connect slider value changed signal
+    slider.valueChanged.connect(self.on_slider_changed)
+    
+    layout.addWidget(slider)
+    self.slidersInnerLayout.addWidget(container)
+    
+    # Store references
+    self.sliders.append(slider)
+    self.sliderLabels.append(label)
+    
+def on_slider_changed(self):
+    """Handle slider value changes"""
+    if self.current_mode == "Music and Animals":
+        self.apply_music_animal_equalization()
+    elif self.current_mode == "Vocals and Phonemes":
+        self.apply_vocal_phoneme_equalization()
         
-        # Set ranges based on mode
-        if mode == "Musical Instruments":
-            ranges = ui.instrument_ranges
-        elif mode == "Animal Sounds":
-            ranges = ui.animal_ranges
-        elif mode == "ECG Abnormalities":
-            ranges = ui.ecg_ranges
-        else:  # Uniform Range
-            ranges = {"Band " + str(i): [(i*1000, (i+1)*1000)] for i in range(10)}
-            
-        # Create sliders without updating equalization
-        createSliders(ui, ranges)
-        return
-    
-    # Normal mode change with signal data
-    ui.current_mode = mode
-    if mode == "Musical Instruments":
-        ranges = ui.instrument_ranges
-    elif mode == "Animal Sounds":
-        ranges = ui.animal_ranges
-    elif mode == "ECG Abnormalities":
-        ranges = ui.ecg_ranges
-    else:  # Uniform Range
-        max_freq = ui.samplingRate // 2 if hasattr(ui, 'samplingRate') else 22050
-        band_width = max_freq / 10
-        ranges = {f"Band {i}": [(i*band_width, (i+1)*band_width)] for i in range(10)}
-    
-    # Reset cache
-    ui.cached = False
-    if hasattr(ui, '_cached_fft'):
-        del ui._cached_fft
-    if hasattr(ui, '_cached_freqs'):
-        del ui._cached_freqs
-        
-    createSliders(ui, ranges)
-    updateEqualization(ui)
-
-
-def createSliders(self, ranges):
-    # First, clear all existing sliders from the layout and delete them
-    while self.slidersInnerLayout.count():
-        item = self.slidersInnerLayout.takeAt(0)
-        if item.widget():
-            item.widget().deleteLater()
-    
-    # Clear the sliders list
-    self.sliders.clear()
-    
-    # Create new sliders
-    for label, freq_range in ranges.items():
-        min_val = -20
-        max_val = 20
-        slider = addSlider(self, label, min_val, max_val, 0)
-        slider.valueChanged.connect(lambda val: updateEqualization(self))
-        self.sliders.append(slider)
-
 def updateEqualization(self):
     # Track if audio is currently playing
     audio_was_playing = False
@@ -393,40 +377,45 @@ def updateEqualization(self):
     gains = [slider.value()/10 for slider in self.sliders]
 
     # Apply equalization
-    if self.current_mode == "Uniform Range":
-        max_freq = self.samplingRate // 2
-        band_width = max_freq / 10
+    # if self.current_mode == "Uniform Range":
+    #     max_freq = self.samplingRate // 2
+    #     band_width = max_freq / 10
         
-        # Vectorized operation instead of loop
-        for i, gain in enumerate(gains):
-            freq_mask = (np.abs(frequencies) >= i * band_width) & (np.abs(frequencies) < (i + 1) * band_width)
-            signal_fft[freq_mask] *= gain
+    #     # Vectorized operation instead of loop
+    #     for i, gain in enumerate(gains):
+    #         freq_mask = (np.abs(frequencies) >= i * band_width) & (np.abs(frequencies) < (i + 1) * band_width)
+    #         signal_fft[freq_mask] *= gain
     
-    else:
-        if self.current_mode == "Musical Instruments":
-            ranges = self.instrument_ranges
-        elif self.current_mode == "Animal Sounds":
-            gains = [slider.value() for slider in self.sliders]  # Remove /100 division
-            ranges = self.animal_ranges
+    # else:
+    #     if self.current_mode == "Musical Instruments":
+    #         ranges = self.instrument_ranges
+    #     elif self.current_mode == "Animal Sounds":
+    #         gains = [slider.value() for slider in self.sliders]  # Remove /100 division
+    #         ranges = self.animal_ranges
             
-            for (name, freq_ranges), gain in zip(ranges.items(), gains):
-                gain = gain/100  
-                for low_freq, high_freq in freq_ranges:
-                    freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
-                    signal_fft[freq_mask] *= gain
-        elif self.current_mode == "ECG Abnormalities":
-            gains = [slider.value()/10 for slider in self.sliders]  # Add /100 scaling
-            ranges = self.ecg_ranges
-            for (name, freq_ranges), gain in zip(ranges.items(), gains):
-                for low_freq, high_freq in freq_ranges:
-                    freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
-                    signal_fft[freq_mask] *= gain
+    #         for (name, freq_ranges), gain in zip(ranges.items(), gains):
+    #             gain = gain/100  
+    #             for low_freq, high_freq in freq_ranges:
+    #                 freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+    #                 signal_fft[freq_mask] *= gain
+    #     elif self.current_mode == "ECG Abnormalities":
+    #         gains = [slider.value()/10 for slider in self.sliders]  # Add /100 scaling
+    #         ranges = self.ecg_ranges
+    #         for (name, freq_ranges), gain in zip(ranges.items(), gains):
+    #             for low_freq, high_freq in freq_ranges:
+    #                 freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+    #                 signal_fft[freq_mask] *= gain
                 
             
-        for (name, freq_ranges), gain in zip(ranges.items(), gains):
-            for low_freq, high_freq in freq_ranges:
-                freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
-                signal_fft[freq_mask] *= gain
+    #     for (name, freq_ranges), gain in zip(ranges.items(), gains):
+    #         for low_freq, high_freq in freq_ranges:
+    #             freq_mask = (np.abs(frequencies) >= low_freq) & (np.abs(frequencies) < high_freq)
+    #             signal_fft[freq_mask] *= gain
+
+    if self.current_mode == "Music and Animals":
+        self.apply_music_animal_equalization()
+    elif self.current_mode == "Vocals and Phonemes":
+        self.apply_vocal_phoneme_equalization()
 
     # Convert back to time domain
     self.modifiedData = np.real(np.fft.ifft(signal_fft))

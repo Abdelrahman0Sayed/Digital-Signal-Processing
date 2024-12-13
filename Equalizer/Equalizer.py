@@ -11,7 +11,7 @@ from scipy.io import wavfile
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from equalizer_functions import changeMode, createSliders, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
+from equalizer_functions import change_mode,updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
 from audiogram import Audiogram
 import sys
 import os
@@ -22,43 +22,97 @@ from ui_helper_functions import apply_fonts, show_loading, hide_loading, show_st
 
 
 class Ui_MainWindow(QMainWindow):
-
     def __init__(self):
         super().__init__()
-        self.current_mode = "Musical Instruments"
+        self.current_mode = "Music and Animals"  # Updated default mode
         self.frequency_scale = "Linear"
         self.signalData = ""
         self.signalTime = ""
         self.modifiedData = self.signalData
         self.signalTimer = QTimer()
         self.signalTimeIndex = 0
-        self.domain="Time Domain"
-        self.cached= False
+        self.domain = "Time Domain"
+        self.cached = False
         
-        self.instrument_ranges = {
-            "Trumpet": [(0, 500)],      # Low frequency range
-            "Xylophone": [(500, 1200)],     # Mid frequency range
-            "Brass": [(1200, 6400)], # Upper mid range
-            "Celesta": [(4000, 13000)] # High frequency range
+        # Combined music and animal ranges
+        self.music_animal_ranges = {
+            "Music": {
+                "Bass": [(20, 300)],
+                "Piano": [(300, 3000)],
+                "Strings": [(3000, 8000)]
+            },
+            "Animals": {
+                "Dogs": [(100, 2000)],
+                "Birds": [(2000, 8000)],
+                "Bats": [(8000, 20000)]
+            }
         }
 
-        # Animal sounds matching dataset ranges
-        self.animal_ranges = {
-            "Dogs": [(0, 450)],        # Low frequency range
-            "Wolves": [(450, 1100)],   # Mid frequency range
-            "Crow": [(1100, 3000)],    # High frequency range
-            "Bat": [(3000, 9000)]      # Ultrasonic range
+        # Vocals and Phonemes mode ranges
+        self.vocal_ranges = {
+            "Instruments": {
+                "Background": [(50, 500)],
+                "Mid-range": [(500, 2000)],
+                "High-range": [(2000, 8000)]
+            },
+            "Phonemes": {
+                "S_sounds": [(4000, 8000)],
+                "F_sounds": [(2500, 6000)],
+                "Sh_sounds": [(1500, 4000)]
+            }
         }
 
-        # ECG ranges matching dataset
+        self.music_animal_ranges = {
+            "Music": {
+                "Bass Instruments": [(20, 300)],      # For removing bass/drums
+                "Mid-Range Instruments": [(300, 2000)], # For removing piano/guitar
+                "High-Range Instruments": [(2000, 8000)] # For removing cymbals/high notes
+            },
+            "Animals": {
+                "Low-Frequency Animals": [(50, 500)],   # For removing deep growls/roars
+                "Mid-Frequency Animals": [(500, 3000)], # For removing barks/calls
+                "High-Frequency Animals": [(3000, 20000)] # For removing chirps/squeaks
+            }
+        }
+
+        # Update vocal and phoneme ranges for singing
+        self.vocal_ranges = {
+            "Instruments": {
+                "Backing Track": [(50, 500)],     # Remove background music
+                "Mid Instruments": [(500, 2000)], # Remove mid-range instruments
+                "High Instruments": [(2000, 8000)] # Remove high-range instruments
+            },
+            "Phonemes": {
+                "S-sounds": [(4000, 8000)],   # Remove sibilant sounds
+                "F-sounds": [(2500, 6000)],   # Remove fricative sounds
+                "Sh-sounds": [(1500, 4000)]   # Remove shushing sounds
+            }
+        }
+        
+        # self.instrument_ranges = {
+        #     "Trumpet": [(0, 500)],      # Low frequency range
+        #     "Xylophone": [(500, 1200)],     # Mid frequency range
+        #     "Brass": [(1200, 6400)], # Upper mid range
+        #     "Celesta": [(4000, 13000)] # High frequency range
+        # }
+
+        # # Animal sounds matching dataset ranges
+        # self.animal_ranges = {
+        #     "Dogs": [(0, 450)],        # Low frequency range
+        #     "Wolves": [(450, 1100)],   # Mid frequency range
+        #     "Crow": [(1100, 3000)],    # High frequency range
+        #     "Bat": [(3000, 9000)]      # Ultrasonic range
+        # }
+
+        # # ECG ranges matching dataset
         
 
-        self.ecg_ranges = {
-            "Normal": [(0, 1000)],  # Normal ECG range
-            "Atrial Fibrillation": [(15, 20)],  # Atrial Fibrillation range
-            "Atrial Flutter": [(2, 8)],  # Atrial Flutter range
-            "Ventricular fibrillation": [(0, 5)]  # Ventricular fibrillation range
-        }
+        # self.ecg_ranges = {
+        #     "Normal": [(0, 1000)],  # Normal ECG range
+        #     "Atrial Fibrillation": [(15, 20)],  # Atrial Fibrillation range
+        #     "Atrial Flutter": [(2, 8)],  # Atrial Flutter range
+        #     "Ventricular fibrillation": [(0, 5)]  # Ventricular fibrillation range
+        # }
 
         self.sliders = []   
         self.sliderLabels = []
@@ -67,7 +121,10 @@ class Ui_MainWindow(QMainWindow):
         self.lastModifiedSignal = None
 
         
-
+    def select_noise_sample(self, start_idx, end_idx):
+        """Select noise sample from silent part of signal"""
+        if self.signalData is not None:
+            self.wiener_settings["Noise_Sample"] = self.signalData[start_idx:end_idx]
 
     # Apply styles to main components
     def apply_modern_styles(self):
@@ -285,7 +342,7 @@ class Ui_MainWindow(QMainWindow):
                     self.secondGraphCanvas.draw()
                     
                     updateEqualization(self)
-                    changeMode(self, self.current_mode)
+                    change_mode(self, self.current_mode)
                 
                 # Store references
                 self.lastLoadedSignal = np.copy(self.signalData)
@@ -298,7 +355,155 @@ class Ui_MainWindow(QMainWindow):
             finally:
                 hide_loading(self)
 
-    
+    def setup_wiener_controls(self):
+        """Setup Wiener filter interface controls"""
+        # Create container for Wiener filter controls
+        self.wienerContainer = QtWidgets.QWidget(self.sideBarFrame)
+        wienerLayout = QtWidgets.QVBoxLayout(self.wienerContainer)
+        wienerLayout.setSpacing(15)
+        wienerLayout.setContentsMargins(10, 10, 10, 10)
+
+        # Title label
+        titleLabel = QtWidgets.QLabel("Wiener Filter Controls")
+        titleLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 16px;
+            font-weight: bold;
+            padding: 5px;
+            background: rgba(114, 137, 218, 0.1);
+            border-radius: 5px;
+        """)
+        wienerLayout.addWidget(titleLabel)
+
+        # Signal selection group
+        signalGroup = QtWidgets.QGroupBox("Signal Selection")
+        signalGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        signalLayout = QtWidgets.QVBoxLayout(signalGroup)
+
+        # Signal buttons
+        self.signalButtons = []
+        for i in range(3):
+            btn = QtWidgets.QPushButton(f"Load Signal {i+1}")
+            btn.setStyleSheet(STYLES['BUTTON'])
+            btn.setIcon(self.uploadIcon)
+            btn.setIconSize(QtCore.QSize(20, 20))
+            self.signalButtons.append(btn)
+            signalLayout.addWidget(btn)
+
+        wienerLayout.addWidget(signalGroup)
+
+        # Noise sample controls
+        noiseGroup = QtWidgets.QGroupBox("Noise Sample")
+        noiseGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        noiseLayout = QtWidgets.QVBoxLayout(noiseGroup)
+
+        # Add noise selection instructions
+        instructionLabel = QtWidgets.QLabel("Select a region of silence to use as noise sample:")
+        instructionLabel.setStyleSheet(f"color: {COLORS['text']};")
+        instructionLabel.setWordWrap(True)
+        noiseLayout.addWidget(instructionLabel)
+
+        # Noise selection button
+        self.selectNoiseButton = QtWidgets.QPushButton("Select Noise Region")
+        self.selectNoiseButton.setStyleSheet(STYLES['BUTTON'])
+        self.selectNoiseButton.setIcon(QtGui.QIcon("images/selection.png"))
+        self.selectNoiseButton.setIconSize(QtCore.QSize(20, 20))
+        noiseLayout.addWidget(self.selectNoiseButton)
+
+        # Selection status
+        self.noiseStatusLabel = QtWidgets.QLabel("No noise sample selected")
+        self.noiseStatusLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        """)
+        noiseLayout.addWidget(self.noiseStatusLabel)
+
+        wienerLayout.addWidget(noiseGroup)
+
+        # Filter controls
+        filterGroup = QtWidgets.QGroupBox("Filter Controls")
+        filterGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        filterLayout = QtWidgets.QVBoxLayout(filterGroup)
+
+        # Apply filter button
+        self.applyWienerButton = QtWidgets.QPushButton("Apply Wiener Filter")
+        self.applyWienerButton.setStyleSheet(STYLES['BUTTON'])
+        self.applyWienerButton.setIcon(QtGui.QIcon("images/filter.png"))
+        self.applyWienerButton.setIconSize(QtCore.QSize(20, 20))
+        filterLayout.addWidget(self.applyWienerButton)
+
+        # Filter status
+        self.filterStatusLabel = QtWidgets.QLabel("Ready to filter")
+        self.filterStatusLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        """)
+        filterLayout.addWidget(self.filterStatusLabel)
+
+        wienerLayout.addWidget(filterGroup)
+
+        # Add stretch to push everything to the top
+        wienerLayout.addStretch()
+
+        # Hide container by default
+        self.wienerContainer.hide()
+        
+        # Add to sidebar
+        self.verticalLayout_2.addWidget(self.wienerContainer)
+
+    def show_wiener_controls(self):
+        """Show Wiener filter controls and hide other mode controls"""
+        self.slidersContainer.hide()
+        self.wienerContainer.show()
+
+    def hide_wiener_controls(self):
+        """Hide Wiener filter controls and show normal mode controls"""
+        self.wienerContainer.hide()
+        self.slidersContainer.show()
+
     def load_csv_data(self, file_path):
         try:
             deleteSignal(self)
@@ -380,7 +585,8 @@ class Ui_MainWindow(QMainWindow):
         self.speedDown.clicked.connect(lambda: speedingDown(self))
         self.deleteButton.clicked.connect(lambda: deleteSignal(self))
         self.spectogramCheck.clicked.connect(lambda: toggleVisibility(self))
-        self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
+        self.modeList.currentTextChanged.connect(lambda text: change_mode(self, text))
+        # self.modeList.currentTextChanged.connect(self.change_mode)
         self.frequencyDomainButton.clicked.connect(lambda : self.audiogramWidget.toggleShape())
         self.exportButton.clicked.connect(lambda : stopAudio(self))
 
@@ -459,23 +665,63 @@ class Ui_MainWindow(QMainWindow):
 
 
         # ---------------------- Setup the side bar ---------------------- #
-        self.sideBarFrame = QtWidgets.QFrame(self.centralwidget)
-        self.sideBarFrame.setStyleSheet(f"""
-            QFrame {{
+        self.sideBarScroll = QtWidgets.QScrollArea(self.centralwidget)
+        self.sideBarScroll.setWidgetResizable(True)
+        self.sideBarScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.sideBarScroll.setStyleSheet(f"""
+            QScrollArea {{
                 background-color: {COLORS['secondary']};
+                border: none;
                 border-radius: 15px;
-                margin: 5px;
-                padding: 10px;
+            }}
+            QScrollBar:vertical {{
+                border: none;
+                background: {COLORS['secondary']};
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {COLORS['accent']};
+                min-height: 20px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {COLORS['button_hover']};
+            }}
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {{
+                background: none;
             }}
         """)
-        self.sideBarFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.sideBarFrame.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.sideBarFrame.setObjectName("sideBarFrame")
-        self.sideBarFrame.setMinimumWidth(350)
-        
-        # the vertical layout for the side bar
-        self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.sideBarFrame)
-        self.verticalLayout_2.setObjectName("verticalLayout_2")
+
+        # Create container widget for sidebar content
+        self.sideBarContent = QtWidgets.QWidget()
+        self.sideBarContent.setStyleSheet(f"""
+            background-color: {COLORS['secondary']};
+            border-radius: 15px;
+            margin: 5px;
+            padding: 10px;
+        """)
+
+        # Move existing sidebar layout to container
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.sideBarContent)
+        self.verticalLayout_2.setSpacing(10)
+        self.verticalLayout_2.setContentsMargins(10, 10, 10, 10)
+
+        # Add all your existing sidebar widgets to verticalLayout_2
+        # ...existing sidebar widget code...
+
+        # Set the container as the scroll area widget
+        self.sideBarScroll.setWidget(self.sideBarContent)
+
+        # Add scroll area to main layout instead of sideBarFrame
+        self.gridLayout.addWidget(self.sideBarScroll, 0, 0, 1, 1)
+        self.sideBarScroll.setMinimumWidth(350)
         
         # 1. File Section
         self.browseFile = QtWidgets.QPushButton(self.sideBarFrame)
@@ -497,8 +743,13 @@ class Ui_MainWindow(QMainWindow):
         self.slidersContainer = QtWidgets.QWidget(self.sideBarFrame)
         self.slidersContainer.setStyleSheet(STYLES['SLIDERS_CONTAINER'])
         self.slidersLayout = QtWidgets.QVBoxLayout(self.slidersContainer)
-        self.slidersLayout.setSpacing(10)
-        self.slidersLayout.setContentsMargins(0 , 0, 0, 0)
+        self.slidersLayout.setSpacing(5)  # Reduce spacing
+        self.slidersLayout.setContentsMargins(0, 0, 0, 0)  # Remove margins
+        
+        # Add to sidebar
+        self.verticalLayout_2.addWidget(self.slidersContainer)
+        
+        
 
         # Create scroll area
         self.scrollArea = QtWidgets.QScrollArea(self.sideBarFrame)
@@ -546,13 +797,146 @@ class Ui_MainWindow(QMainWindow):
 
         # Create inner widget to hold sliders
         self.slidersInnerContainer = QtWidgets.QWidget()
+        self.slidersInnerContainer.setObjectName("scrollAreaWidgetContents")
         self.slidersInnerLayout = QtWidgets.QVBoxLayout(self.slidersInnerContainer)
-        self.slidersInnerLayout.setSpacing(10)
-        self.slidersInnerLayout.setContentsMargins(10, 10, 10, 10)
+        self.slidersInnerLayout.setSpacing(5)  # Reduce spacing
+        self.slidersInnerLayout.setContentsMargins(5, 5, 5, 5)  # Minimal margins
 
-        # Set up scroll area
         self.scrollArea.setWidget(self.slidersInnerContainer)
         self.slidersLayout.addWidget(self.scrollArea)
+
+        # Add Wiener Filter Container
+        self.wienerContainer = QtWidgets.QWidget(self.sideBarFrame)
+        wienerLayout = QtWidgets.QVBoxLayout(self.wienerContainer)
+        wienerLayout.setSpacing(15)
+        wienerLayout.setContentsMargins(10, 10, 10, 10)
+
+        # Title label
+        titleLabel = QtWidgets.QLabel("Wiener Filter Controls")
+        titleLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 16px;
+            font-weight: bold;
+            padding: 5px;
+            background: rgba(114, 137, 218, 0.1);
+            border-radius: 5px;
+        """)
+        wienerLayout.addWidget(titleLabel)
+
+        # Signal selection group
+        signalGroup = QtWidgets.QGroupBox("Signal Selection")
+        signalGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        signalLayout = QtWidgets.QVBoxLayout(signalGroup)
+
+        # Signal buttons
+        self.signalButtons = []
+        for i in range(3):
+            btn = QtWidgets.QPushButton(f"Load Signal {i+1}")
+            btn.setStyleSheet(STYLES['BUTTON'])
+            btn.setIcon(self.uploadIcon)
+            btn.setIconSize(QtCore.QSize(20, 20))
+            self.signalButtons.append(btn)
+            signalLayout.addWidget(btn)
+
+        wienerLayout.addWidget(signalGroup)
+
+        # Noise sample controls
+        noiseGroup = QtWidgets.QGroupBox("Noise Sample")
+        noiseGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        noiseLayout = QtWidgets.QVBoxLayout(noiseGroup)
+
+        # Add noise selection instructions
+        instructionLabel = QtWidgets.QLabel("Select a region of silence to use as noise sample:")
+        instructionLabel.setStyleSheet(f"color: {COLORS['text']};")
+        instructionLabel.setWordWrap(True)
+        noiseLayout.addWidget(instructionLabel)
+
+        # Noise selection button
+        self.selectNoiseButton = QtWidgets.QPushButton("Select Noise Region")
+        self.selectNoiseButton.setStyleSheet(STYLES['BUTTON'])
+        self.selectNoiseButton.setIcon(QtGui.QIcon("images/selection.png"))
+        self.selectNoiseButton.setIconSize(QtCore.QSize(20, 20))
+        noiseLayout.addWidget(self.selectNoiseButton)
+
+        # Selection status
+        self.noiseStatusLabel = QtWidgets.QLabel("No noise sample selected")
+        self.noiseStatusLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        """)
+        noiseLayout.addWidget(self.noiseStatusLabel)
+
+        wienerLayout.addWidget(noiseGroup)
+
+        # Filter controls
+        filterGroup = QtWidgets.QGroupBox("Filter Controls")
+        filterGroup.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {COLORS['accent']};
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px;
+            }}
+            QGroupBox::title {{
+                color: {COLORS['text']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+        """)
+        filterLayout = QtWidgets.QVBoxLayout(filterGroup)
+
+        # Apply filter button
+        self.applyWienerButton = QtWidgets.QPushButton("Apply Wiener Filter")
+        self.applyWienerButton.setStyleSheet(STYLES['BUTTON'])
+        self.applyWienerButton.setIcon(QtGui.QIcon("images/filter.png"))
+        self.applyWienerButton.setIconSize(QtCore.QSize(20, 20))
+        filterLayout.addWidget(self.applyWienerButton)
+
+        # Filter status
+        self.filterStatusLabel = QtWidgets.QLabel("Ready to filter")
+        self.filterStatusLabel.setStyleSheet(f"""
+            color: {COLORS['text']};
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        """)
+        filterLayout.addWidget(self.filterStatusLabel)
+
+        wienerLayout.addWidget(filterGroup)
+        wienerLayout.addStretch()
+
+        # Hide container by default and add to sidebar
+        self.wienerContainer.hide()
+        self.verticalLayout_2.addWidget(self.wienerContainer)
 
         # 5. Audio Controls Section
         self.playOriginalSignal = QtWidgets.QPushButton(self.sideBarFrame)
@@ -805,6 +1189,9 @@ class Ui_MainWindow(QMainWindow):
         self.setup_connections()
         self.enhance_graphs()
 
+        # Create initial sliders for default mode
+        self.create_music_animal_sliders()
+
 
         
     # Update the mode selection section styling
@@ -833,11 +1220,17 @@ class Ui_MainWindow(QMainWindow):
         self.modeList = QtWidgets.QComboBox()
         self.modeList.setFixedHeight(45)
         self.modeList.addItems([
-            "Musical Instruments",
-            "Animal Sounds", 
-            "Uniform Range",
-            "ECG Abnormalities"
+            "Music and Animals", 
+            "Vocals and Phonemes",  # For singing mode
+            "Wiener Filter"      # For noise removal
         ])
+        
+        # Update mode icons
+        mode_icons = {
+            0: "music.png",  # Music + Animals
+            1: "mic.png",    # Vocals + Phonemes
+            2: "filter.png"  # Wiener Filter
+        }
         
         # Enhanced ComboBox styling
         self.modeList.setStyleSheet(f"""
@@ -918,7 +1311,7 @@ class Ui_MainWindow(QMainWindow):
         #self.verticalLayout_2.addWidget(self.modeSelectionContainer)
 
         # Connect signal
-        self.modeList.currentTextChanged.connect(lambda text: changeMode(self, text))
+        self.modeList.currentTextChanged.connect(lambda text: change_mode(self, text))
 
     # Then modify sync_pan function:
     def sync_pan(self, viewbox, viewrect):
@@ -966,12 +1359,212 @@ class Ui_MainWindow(QMainWindow):
     
     
 
+    def create_music_animal_sliders(self):
+        """Create sliders for music and animal sounds"""
+        self.clear_sliders()
+        
+        # Add music sliders
+        for name, ranges in self.music_animal_ranges["Music"].items():
+            self.add_slider(name, ranges[0][0], ranges[0][1])
+            
+        # Add animal sliders
+        for name, ranges in self.music_animal_ranges["Animals"].items():
+            self.add_slider(name, ranges[0][0], ranges[0][1])
 
+    def create_vocal_phoneme_sliders(self):
+        """Create sliders for vocals and phonemes"""
+        self.clear_sliders()
+        
+        # Add instrument sliders
+        for name, ranges in self.vocal_ranges["Instruments"].items():
+            self.add_slider(name, ranges[0][0], ranges[0][1])
+            
+        # Add phoneme sliders
+        for name, ranges in self.vocal_ranges["Phonemes"].items():
+            self.add_slider(name, ranges[0][0], ranges[0][1])
+
+    def clear_sliders(self):
+        """Clear all existing sliders"""
+        # Delete existing widgets
+        for slider in self.sliders:
+            slider.deleteLater()
+        for label in self.sliderLabels:
+            label.deleteLater()
+        
+        # Clear lists
+        self.sliders = []
+        self.sliderLabels = []
+        
+        # Reset layout
+        while self.slidersInnerLayout.count():
+            item = self.slidersInnerLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+    def add_slider(self, name, min_freq, max_freq):
+        """Add a slider with frequency range label"""
+        # Create container for slider group
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Add label with name and frequency range
+        label = QtWidgets.QLabel(f"{name} ({min_freq}-{max_freq} Hz)")
+        label.setStyleSheet(f"""
+            color: {COLORS['text']};
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        """)
+        layout.addWidget(label)
+        
+        # Create slider
+        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        slider.setMinimum(0)
+        slider.setMaximum(100)
+        slider.setValue(0)
+        slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{
+                border: 1px solid {COLORS['accent']};
+                height: 8px;
+                background: {COLORS['secondary']};
+                margin: 2px 0;
+                border-radius: 4px;
+            }}
+
+            QSlider::handle:horizontal {{
+                background: {COLORS['accent']};
+                border: none;
+                width: 18px;
+                margin: -6px 0;
+                border-radius: 9px;
+            }}
+
+            QSlider::handle:horizontal:hover {{
+                background: {COLORS['button_hover']};
+            }}
+        """)
+        
+        # Connect slider value changed signal
+        slider.valueChanged.connect(self.on_slider_changed)
+        
+        layout.addWidget(slider)
+        self.slidersInnerLayout.addWidget(container)
+        self.slidersInnerLayout.addSpacing(2)  # Small space between slider groups
+        
+        # Store references
+        self.sliders.append(slider)
+        self.sliderLabels.append(label)
+        
+    def on_slider_changed(self):
+        """Handle slider value changes"""
+        if self.current_mode == "Music and Animals":
+            self.apply_music_animal_equalization()
+        elif self.current_mode == "Vocals and Phonemes":
+            self.apply_vocal_phoneme_equalization()
+
+    def apply_music_animal_equalization(self):
+        """Apply equalization for music and animal mode"""
+        if self.signalData is None or len(self.sliders) != 6:
+            return
+
+        # Get FFT of signal
+        if not self.cached:
+            self._cached_fft = np.fft.fft(self.signalData)
+            self._cached_freqs = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
+            self.cached = True
+
+        # Create a copy of the FFT data
+        modified_fft = self._cached_fft.copy()
+        
+        # Apply each slider's equalization
+        for i, (name, ranges) in enumerate(list(self.music_animal_ranges["Music"].items()) + 
+                                        list(self.music_animal_ranges["Animals"].items())):
+            # Get slider value (0-100)
+            slider_value = self.sliders[i].value()
+            
+            # Convert to attenuation factor (0-1)
+            attenuation = (slider_value / 100)
+            
+            # Get frequency range
+            freq_range = ranges[0]
+            freq_min, freq_max = freq_range
+            
+            # Find frequency indices
+            freq_mask = (abs(self._cached_freqs) >= freq_min) & (abs(self._cached_freqs) <= freq_max)
+            
+            # Apply attenuation to frequency range
+            modified_fft[freq_mask] *= attenuation
+            
+        # Apply inverse FFT
+        self.modifiedData = np.real(np.fft.ifft(modified_fft))
+        
+        # Update plots
+        signalPlotting(self)
+        plotSpectrogram(self)
+
+    def apply_vocal_phoneme_equalization(self):
+        """Apply equalization for vocals and phonemes mode"""
+        if self.signalData is None or len(self.sliders) != 6:
+            return
+
+        # Get FFT of signal
+        if not self.cached:
+            self._cached_fft = np.fft.fft(self.signalData)
+            self._cached_freqs = np.fft.fftfreq(len(self.signalData), 1/self.samplingRate)
+            self.cached = True
+
+        # Create a copy of the FFT data
+        modified_fft = self._cached_fft.copy()
+        
+        # Apply each slider's equalization
+        for i, (name, ranges) in enumerate(list(self.vocal_ranges["Instruments"].items()) + 
+                                        list(self.vocal_ranges["Phonemes"].items())):
+            # Get slider value (0-100)
+            slider_value = self.sliders[i].value()
+            
+            # Convert to attenuation factor (0-1)
+            attenuation = (slider_value / 100)
+            
+            # Get frequency range
+            freq_range = ranges[0]
+            freq_min, freq_max = freq_range
+            
+            # Find frequency indices
+            freq_mask = (abs(self._cached_freqs) >= freq_min) & (abs(self._cached_freqs) <= freq_max)
+            
+            # Apply attenuation to frequency range with smoother transition for phonemes
+            if i >= 3:  # Phoneme sliders
+                # Create smooth transition at frequency boundaries
+                transition_width = (freq_max - freq_min) * 0.1
+                lower_transition = np.logical_and(
+                    abs(self._cached_freqs) >= freq_min - transition_width,
+                    abs(self._cached_freqs) < freq_min
+                )
+                upper_transition = np.logical_and(
+                    abs(self._cached_freqs) > freq_max,
+                    abs(self._cached_freqs) <= freq_max + transition_width
+                )
+                
+                # Apply gradual attenuation in transition regions
+                modified_fft[lower_transition] *= (1 - (1-attenuation) * 
+                    (abs(self._cached_freqs[lower_transition]) - (freq_min-transition_width)) / transition_width)
+                modified_fft[upper_transition] *= (1 - (1-attenuation) * 
+                    (1 - (abs(self._cached_freqs[upper_transition]) - freq_max) / transition_width))
+                
+            modified_fft[freq_mask] *= attenuation
+            
+        # Apply inverse FFT
+        self.modifiedData = np.real(np.fft.ifft(modified_fft))
+        
+        # Update plots
+        signalPlotting(self)
+        plotSpectrogram(self)
 
 if __name__ == "__main__":
     import sys
     from PyQt5 import QtWidgets
-    from equalizer_functions import changeMode, updateEqualization, signalPlotting, plotSpectrogram
+    from equalizer_functions import change_mode, updateEqualization, signalPlotting, plotSpectrogram
     import numpy as np
 
     app = QtWidgets.QApplication(sys.argv)
@@ -996,7 +1589,7 @@ if __name__ == "__main__":
     ui.audiogramLayout.addWidget(ui.audiogramWidget)
 
     # Create initial sliders
-    changeMode(ui, ui.current_mode)
+    change_mode(ui, ui.current_mode)
 
     MainWindow.show()
     sys.exit(app.exec_())
