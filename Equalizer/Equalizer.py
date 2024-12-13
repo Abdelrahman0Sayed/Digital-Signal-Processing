@@ -11,7 +11,7 @@ from scipy.io import wavfile
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from equalizer_functions import change_mode,updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
+from equalizer_functions import updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
 from audiogram import Audiogram
 import sys
 import os
@@ -157,7 +157,7 @@ class Ui_MainWindow(QMainWindow):
         
         # Main frame
         self.mainBodyframe.setStyleSheet(STYLES['PANEL'])
-        self.sideBarFrame.setStyleSheet(STYLES['PANEL'])
+        self.sideBarScroll.setStyleSheet(STYLES['PANEL'])
 
         self.verticalGraphs.setSpacing(20)
         self.horizontalLayout.setSpacing(15)
@@ -343,6 +343,7 @@ class Ui_MainWindow(QMainWindow):
                     
                     updateEqualization(self)
                     change_mode(self, self.current_mode)
+                    
                 
                 # Store references
                 self.lastLoadedSignal = np.copy(self.signalData)
@@ -355,10 +356,12 @@ class Ui_MainWindow(QMainWindow):
             finally:
                 hide_loading(self)
 
+            
+
     def setup_wiener_controls(self):
         """Setup Wiener filter interface controls"""
         # Create container for Wiener filter controls
-        self.wienerContainer = QtWidgets.QWidget(self.sideBarFrame)
+        self.wienerContainer = QtWidgets.QWidget(self.sideBarScroll)
         wienerLayout = QtWidgets.QVBoxLayout(self.wienerContainer)
         wienerLayout.setSpacing(15)
         wienerLayout.setContentsMargins(10, 10, 10, 10)
@@ -719,28 +722,28 @@ class Ui_MainWindow(QMainWindow):
         # Set the container as the scroll area widget
         self.sideBarScroll.setWidget(self.sideBarContent)
 
-        # Add scroll area to main layout instead of sideBarFrame
+        # Add scroll area to main layout instead of sideBarScroll
         self.gridLayout.addWidget(self.sideBarScroll, 0, 0, 1, 1)
         self.sideBarScroll.setMinimumWidth(350)
         
         # 1. File Section
-        self.browseFile = QtWidgets.QPushButton(self.sideBarFrame)
+        self.browseFile = QtWidgets.QPushButton(self.sideBarScroll)
         self.browseFile.setIcon(self.uploadIcon)
         self.browseFile.setIconSize(QtCore.QSize(25, 25))
 
         # 2. View Controls Section
-        self.frequencyDomainButton = QtWidgets.QPushButton(self.sideBarFrame)
+        self.frequencyDomainButton = QtWidgets.QPushButton(self.sideBarScroll)
         self.frequencyDomainButton.setStyleSheet(STYLES['TOGGLE_BUTTON'])
         self.frequencyDomainButton.setCheckable(True)
         self.frequencyDomainButton.setIcon(self.signalIcon)
         self.frequencyDomainButton.setIconSize(QtCore.QSize(25, 25))
-        self.spectogramCheck = QtWidgets.QCheckBox(self.sideBarFrame)
+        self.spectogramCheck = QtWidgets.QCheckBox(self.sideBarScroll)
         
         # 3. Mode Selection Section
         self.setup_mode_selection()
         
         # 4. Sliders Section
-        self.slidersContainer = QtWidgets.QWidget(self.sideBarFrame)
+        self.slidersContainer = QtWidgets.QWidget(self.sideBarScroll)
         self.slidersContainer.setStyleSheet(STYLES['SLIDERS_CONTAINER'])
         self.slidersLayout = QtWidgets.QVBoxLayout(self.slidersContainer)
         self.slidersLayout.setSpacing(5)  # Reduce spacing
@@ -752,7 +755,7 @@ class Ui_MainWindow(QMainWindow):
         
 
         # Create scroll area
-        self.scrollArea = QtWidgets.QScrollArea(self.sideBarFrame)
+        self.scrollArea = QtWidgets.QScrollArea(self.sideBarScroll)
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -806,7 +809,7 @@ class Ui_MainWindow(QMainWindow):
         self.slidersLayout.addWidget(self.scrollArea)
 
         # Add Wiener Filter Container
-        self.wienerContainer = QtWidgets.QWidget(self.sideBarFrame)
+        self.wienerContainer = QtWidgets.QWidget(self.sideBarScroll)
         wienerLayout = QtWidgets.QVBoxLayout(self.wienerContainer)
         wienerLayout.setSpacing(15)
         wienerLayout.setContentsMargins(10, 10, 10, 10)
@@ -939,16 +942,16 @@ class Ui_MainWindow(QMainWindow):
         self.verticalLayout_2.addWidget(self.wienerContainer)
 
         # 5. Audio Controls Section
-        self.playOriginalSignal = QtWidgets.QPushButton(self.sideBarFrame)
+        self.playOriginalSignal = QtWidgets.QPushButton(self.sideBarScroll)
         self.playOriginalSignal.setIcon(self.playIcon)
         self.playOriginalSignal.setIconSize(QtCore.QSize(25, 25))
-        self.playFilteredSignal = QtWidgets.QPushButton(self.sideBarFrame)
+        self.playFilteredSignal = QtWidgets.QPushButton(self.sideBarScroll)
         self.playFilteredSignal.setIcon(self.playIcon)
         self.playFilteredSignal.setIconSize(QtCore.QSize(25, 25))
-        self.exportButton = QtWidgets.QPushButton(self.sideBarFrame)
+        self.exportButton = QtWidgets.QPushButton(self.sideBarScroll)
         self.exportButton.setIcon(self.exportIcon)
         self.exportButton.setIconSize(QtCore.QSize(25, 25))
-        self.gridLayout.addWidget(self.sideBarFrame, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.sideBarScroll, 0, 0, 1, 1)
 
         #---------------------------------- end of side bar ----------------------------------#
     
@@ -1165,7 +1168,7 @@ class Ui_MainWindow(QMainWindow):
         apply_fonts(self)
 
         # Add loading spinner
-        self.loadingSpinner = QtWidgets.QProgressBar(self.sideBarFrame)
+        self.loadingSpinner = QtWidgets.QProgressBar(self.sideBarScroll)
         self.loadingSpinner.setStyleSheet(f"""
             QProgressBar {{
                 border: 2px solid {COLORS['accent']};
@@ -1197,7 +1200,7 @@ class Ui_MainWindow(QMainWindow):
     # Update the mode selection section styling
     def setup_mode_selection(self):
         # Mode selection container
-        self.modeSelectionContainer = QtWidgets.QWidget(self.sideBarFrame)
+        self.modeSelectionContainer = QtWidgets.QWidget(self.sideBarScroll)
         self.modeSelectionLayout = QtWidgets.QVBoxLayout(self.modeSelectionContainer)
         self.modeSelectionLayout.setSpacing(10)
         self.modeSelectionLayout.setContentsMargins(15, 15, 15, 15)
@@ -1503,6 +1506,13 @@ class Ui_MainWindow(QMainWindow):
         signalPlotting(self)
         plotSpectrogram(self)
 
+        if hasattr(self, 'audiogramWidget'):
+            self.audiogramWidget.updateData(
+                self.signalTime,
+                self.signalData,
+                self.modifiedData
+            )
+
     def apply_vocal_phoneme_equalization(self):
         """Apply equalization for vocals and phonemes mode"""
         if self.signalData is None or len(self.sliders) != 6:
@@ -1561,6 +1571,13 @@ class Ui_MainWindow(QMainWindow):
         signalPlotting(self)
         plotSpectrogram(self)
 
+        if hasattr(self, 'audiogramWidget'):
+            self.audiogramWidget.updateData(
+                self.signalTime,
+                self.signalData,
+                self.modifiedData
+            )
+
 if __name__ == "__main__":
     import sys
     from PyQt5 import QtWidgets
@@ -1578,7 +1595,8 @@ if __name__ == "__main__":
     ui.signalTime = np.array([0])
     ui.samplingRate = 44100
     ui.cached = False
-    ui.current_mode = "Musical Instruments"
+    ui.current_mode = "Music and Animals"
+    
     
     # Initialize audiogram
     ui.audiogramWidget = Audiogram(

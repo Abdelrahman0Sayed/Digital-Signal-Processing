@@ -11,7 +11,7 @@ from scipy.io import wavfile
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from equalizer_functions import changeMode, createSliders, updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
+from equalizer_functions import  updateEqualization, toggleFrequencyScale, playOriginalAudio, playFilteredAudio, toggleVisibility, togglePlaying, resetSignal, stopAudio, signalPlotting , zoomingIn , zoomingOut , speedingUp , speedingDown , toggleFreqDomain , plotSpectrogram, export_signal , deleteSignal
 from audiogram import Audiogram
 import sys
 import os
@@ -112,8 +112,8 @@ def show_status(self, message, duration=3000):
 
 def setup_sidebar(self):
     # Main sidebar frame
-    self.sideBarFrame.setStyleSheet(STYLES['SIDEBAR'])
-    self.sideBarFrame.setMinimumWidth(350)
+    #self.sideBarScroll.setStyleSheet(STYLES['SIDEBAR'])
+    self.sideBarScroll.setMinimumWidth(350)
     self.verticalLayout_2.setSpacing(15)
     self.verticalLayout_2.setContentsMargins(5, 5, 5, 5)
 
