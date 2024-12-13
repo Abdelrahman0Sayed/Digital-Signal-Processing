@@ -25,7 +25,7 @@ logging.basicConfig(
     filemode="a",  # Append to the file; use "w" for overwriting
 )
 
-
+ 
 
 # Define color palette
 # Define color palette with better contrast and cohesion
